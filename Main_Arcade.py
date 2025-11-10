@@ -52,12 +52,12 @@ INITIAL_REVEAL_DURATION_MS = 1500
 
 # --- Prize Data (Simplified for display) ---
 PRIZES = [
-    {"name": "Teddy Bear", "cost": 500, "icon": "ʕ •ᴥ• ʔ"},
-    {"name": "Mini Robot", "cost": 1500, "icon": "๏[-ิ_•ิ]๏"},
-    {"name": "Giant Lollipop", "cost": 2500, "icon": "⟟"},
-    {"name": "VR Headset", "cost": 5000, "icon": "☉⌓☉"},
-    {"name": "Electric Scooter", "cost": 10000, "icon": "⧳"},
-    {"name": "New Car", "cost": 50000, "icon": "🝞"},
+    {"name": "Teddy Bear", "cost": 500, "icon": "🧸"},
+    {"name": "Mini Robot", "cost": 1500, "icon": "🤖"},
+    {"name": "Giant Lollipop", "cost": 2500, "icon": "🍭"},
+    {"name": "VR Headset", "cost": 5000, "icon": "👓"},
+    {"name": "Electric Scooter", "cost": 10000, "icon": "🛴"},
+    {"name": "New Car", "cost": 50000, "icon": "🚗"},
 ]
 
 # --- Utility Functions ---

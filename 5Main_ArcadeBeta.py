@@ -24,7 +24,7 @@ CARNIVAL_RED = RED
 CARNIVAL_BLUE = (0, 150, 255)
 WATER_CYAN = (100, 200, 255)
 GOLD = (255, 215, 0)
-BROWN = (139, 69, 19) # For Shell Game
+BROWN = (139, 69, 19) # For Shell Game (text/visuals kept)
 
 # --- Game State Definitions ---
 STATE_MENU = 0
@@ -41,7 +41,7 @@ MAX_SWING_ANGLE = math.pi / 4.5
 SWING_SPEED = 1.0
 STREAM_LENGTH = 450
 
-# Shell Game Constants
+# Shell Game Constants (kept for text/visual consistency in menu)
 SHUFFLE_EVENT = pygame.USEREVENT + 1
 SHUFFLE_DURATION_MS = 500
 INITIAL_REVEAL_DURATION_MS = 1500
@@ -675,232 +675,41 @@ class ClownSplashMiniGame:
 
 
 # ------------------------------------------------------------------------------
-# 4. SHELL GAME CLASSES
+# 4. SHELL GAME - REMOVED FOR BETA
 # ------------------------------------------------------------------------------
 
-class Cup(pygame.sprite.Sprite):
-    def __init__(self, x, y, size=160, has_ball=False):
-        super().__init__()
-        self.size = size
-        self.image = pygame.Surface([size, size], pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=(x, y))
-        self.current_x = x
-        self.current_y = y
-        self.has_ball = has_ball
-        self.is_moving = False
-        self.is_revealed = False
-        self.color = RED
-        
-        self.target_x = x
-        self.target_y = y
-        self.start_time = 0
-        self.duration = SHUFFLE_DURATION_MS / 1000.0
-
-        self._draw_cup()
-
-    def _draw_cup(self):
-        self.image.fill((0, 0, 0, 0))
-        
-        points = [
-            (5, self.size),
-            (self.size - 5, self.size),
-            (self.size - 25, 20),
-            (25, 20)
-        ]
-        pygame.draw.polygon(self.image, self.color, points, 0)
-        
-        # Draw the ball only if the cup is explicitly revealed
-        if self.is_revealed and self.has_ball:
-            pygame.draw.circle(self.image, WHITE, (self.size // 2, self.size - 30), 18) 
-
-
-    def set_target(self, target_x, target_y):
-        self.target_x = target_x
-        self.target_y = target_y
-        self.start_time = time.time()
-        self.is_moving = True
-        self.duration = SHUFFLE_DURATION_MS / 1000.0
-
-    def update(self):
-        if self.is_moving:
-            elapsed = time.time() - self.start_time
-            progress = min(elapsed / self.duration, 1.0)
-            
-            new_x = self.current_x + (self.target_x - self.current_x) * progress
-            new_y = self.current_y
-
-            self.rect.center = (new_x, new_y)
-
-            if progress >= 1.0:
-                self.is_moving = False
-                self.current_x = self.target_x
-                self.current_y = self.target_y
-
-    def reveal(self, should_reveal=True):
-        self.is_revealed = should_reveal
-        self._draw_cup()
-
-
-class ShellGameMiniGame:
+class ShellGamePlaceholder:
+    
     def __init__(self, screen, font):
         self.screen = screen
         self.font = font
+        self.message = "SHELL GAME (temporarily removed in this beta)."
+        self.sub_message = "Thanks for testing — the full Shell Game will be added soon."
         self.reset()
 
     def reset(self):
-        self.state = "START_REVEAL"
-        self.shuffle_count = 10
-        self.current_shuffle = 0
-        self.message = "Get ready to watch closely!"
-        self.shuffle_pairs = []
-        self.last_score_change = 0
-        
-        pygame.time.set_timer(SHUFFLE_EVENT, 0) 
-        
-        self.cup_x_positions = [
-            SCREEN_WIDTH // 2 - 200,
-            SCREEN_WIDTH // 2,
-            SCREEN_WIDTH // 2 + 200
-        ]
+        # Reset any state (kept minimal)
+        self.show_time = time.time()
 
-        self._setup_cups()
-        self._initial_reveal_sequence()
-
-    def _setup_cups(self):
-        center_y = SCREEN_HEIGHT * 0.7
-        ball_index = random.randint(0, 2)
-
-        self.cups = []
-        for i, x_pos in enumerate(self.cup_x_positions):
-            cup = Cup(x_pos, center_y, size=160, has_ball=(i == ball_index)) 
-            self.cups.append(cup)
-            
-        self.all_sprites = pygame.sprite.Group(self.cups)
-        
-        for cup in self.cups:
-            cup.reveal(False)
-            cup.is_moving = False
-
-
-    def _initial_reveal_sequence(self):
-        self.state = "START_REVEAL"
-        for cup in self.cups:
-            if cup.has_ball:
-                cup.reveal(True)
-            else:
-                 cup.reveal(False)
-        self.message = "Watch the ball!"
-        
-        pygame.time.set_timer(SHUFFLE_EVENT, INITIAL_REVEAL_DURATION_MS, 1)
-
-
-    def _start_shuffling(self):
-        for cup in self.cups:
-            cup.reveal(False)
-            
-        self.state = "SHUFFLING"
-        self.current_shuffle = 0
-        self.shuffle_pairs = self._generate_shuffle_pairs()
-        self.message = f"Shuffling {self.shuffle_count} times... Keep your eyes on the ball!"
-        
-        pygame.time.set_timer(SHUFFLE_EVENT, SHUFFLE_DURATION_MS + 100)
-
-    def _generate_shuffle_pairs(self):
-        pairs = []
-        for _ in range(self.shuffle_count):
-            indices = random.sample(range(3), 2)
-            pairs.append(tuple(indices))
-        return pairs
-
-    def _do_one_shuffle(self):
-        if any(cup.is_moving for cup in self.cups):
-            return
-
-        if self.current_shuffle >= len(self.shuffle_pairs):
-            pygame.time.set_timer(SHUFFLE_EVENT, 0)
-            self.state = "WAITING_CHOICE"
-            self.message = "Where is the ball? Click on a cup!"
-            return
-
-        idx1, idx2 = self.shuffle_pairs[self.current_shuffle]
-        
-        cup1_obj = self.cups[idx1]
-        cup2_obj = self.cups[idx2]
-        
-        target_x1, target_y1 = cup1_obj.current_x, cup1_obj.current_y
-        target_x2, target_y2 = cup2_obj.current_x, cup2_obj.current_y
-
-        cup1_obj.set_target(target_x2, target_y2)
-        cup2_obj.set_target(target_x1, target_y1)
-        
-        self.cups[idx1], self.cups[idx2] = self.cups[idx2], self.cups[idx1]
-        
-        self.current_shuffle += 1
-
-    def _check_choice(self, pos):
-        score_to_report = 0
-        
-        if self.state != "WAITING_CHOICE":
-            return score_to_report
-            
-        chosen_cup = None
-        for cup in self.cups:
-            if cup.rect.collidepoint(pos):
-                chosen_cup = cup
-                break
-        
-        if chosen_cup:
-            self.state = "GAME_OVER"
-            
-            for c in self.all_sprites:
-                c.reveal(True)
-                
-            if chosen_cup.has_ball:
-                score_to_report = 1000
-                self.message = f"CONGRATS! You found the ball! +{score_to_report} Points! (Game resets soon)"
-            else:
-                score_to_report = 0
-                self.message = "Too bad! The ball was not there. (Game resets soon)"
-            
-            pygame.time.set_timer(SHUFFLE_EVENT, INITIAL_REVEAL_DURATION_MS, 1)
-            
-        return score_to_report
-        
     def handle_input(self, event):
-        score_change = 0
-        
-        if event.type == SHUFFLE_EVENT:
-            if self.state == "START_REVEAL":
-                self._start_shuffling()
-            elif self.state == "SHUFFLING":
-                self._do_one_shuffle()
-            elif self.state == "GAME_OVER":
-                self.reset()
-        
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.state == "WAITING_CHOICE":
-                score_change = self._check_choice(event.pos)
-                
-        return score_change
+        # No interactive gameplay here. Let ESC still return to menu via ArcadeManager.
+        return 0
 
     def update(self, dt):
-        self.all_sprites.update()
+        # No game logic; could animate a small blinking notice if desired.
         return 0
 
     def draw(self):
         self.screen.fill(BLACK)
-        
-        table_rect = pygame.Rect(0, SCREEN_HEIGHT * 0.5, SCREEN_WIDTH, SCREEN_HEIGHT * 0.5)
-        pygame.draw.rect(self.screen, BROWN, table_rect)
-
-        msg_text = self.font.render(self.message, True, YELLOW)
-        self.screen.blit(msg_text, (SCREEN_WIDTH // 2 - msg_text.get_width() // 2, 50))
-        
-        self.all_sprites.draw(self.screen)
+        title = self.font.render("SHELL GAME - TEMPORARILY REMOVED", True, YELLOW)
+        self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, SCREEN_HEIGHT // 2 - 40))
+        sub = self.font.render(self.sub_message, True, WHITE)
+        self.screen.blit(sub, (SCREEN_WIDTH // 2 - sub.get_width() // 2, SCREEN_HEIGHT // 2 + 10))
+        note = self.font.render("Press ESC to return to the Menu.", True, GOLD)
+        self.screen.blit(note, (SCREEN_WIDTH // 2 - note.get_width() // 2, SCREEN_HEIGHT // 2 + 60))
 
     def cleanup(self):
-        pygame.time.set_timer(SHUFFLE_EVENT, 0)
-        self.all_sprites.empty()
+        pass
 
 
 # ==============================================================================
@@ -925,7 +734,8 @@ class ArcadeManager:
             STATE_DARTPOP: DartPopGame(self.screen, self.font),
             STATE_HOOPSHOT: HoopShotGame(self.screen, self.font),
             STATE_SPLASH: ClownSplashMiniGame(self.screen, self.font),
-            STATE_SHELLGAME: ShellGameMiniGame(self.screen, self.font),
+            # The shell game implementation was removed for the beta — replaced by a safe placeholder.
+            STATE_SHELLGAME: ShellGamePlaceholder(self.screen, self.font),
         }
         
         # Long names used for Menu buttons
@@ -957,8 +767,11 @@ class ArcadeManager:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 if self.state != STATE_MENU:
                     current_game = self.games[self.state]
-                    current_game.cleanup() 
-                    current_game.reset()
+                    try:
+                        current_game.cleanup() 
+                        current_game.reset()
+                    except Exception:
+                        pass
                     self.state = STATE_MENU
                 else:
                     self.running = False
@@ -969,7 +782,11 @@ class ArcadeManager:
                     for game_state, rect in self.button_rects.items():
                         if rect.collidepoint(event.pos):
                             self.state = game_state
-                            self.games[self.state].reset() 
+                            # reset the chosen game safely
+                            try:
+                                self.games[self.state].reset() 
+                            except Exception:
+                                pass
                             break
             
             # Game Input Handler (passes all relevant events)

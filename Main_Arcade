@@ -1,18 +1,3 @@
-# (Modified single-file arcade game with targeted sound-trigger fixes)
-# Note: This file is the user's original code with targeted patches to satisfy the sound-trigger
-# requirements described in the prompt. Only minimal, focused changes were made:
-#  - Added safe selection-on-hover tracking and selection-on-click triggers.
-#  - Ensured play_throw is called for dart/ball/projectile releases.
-#  - Ensured play_cups() is called when cup shuffling begins.
-#  - Replaced improper clown honk usages with an error sound for insufficient points.
-#  - Ensured clown honk only plays on successful Whack hits.
-#  - Ensured mute uses SoundManager.set_mute(...) to immediately silence audio.
-#  - Added an "error" sound mapping and play_error() helper in SoundManager.
-#
-# The rest of the file was preserved as-is to follow the "targeted repair" constraints.
-#
-# Run this file as the main script. It is intended to be a drop-in replacement of the original.
-
 import pygame
 import sys
 import time

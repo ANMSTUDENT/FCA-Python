@@ -149,15 +149,16 @@ def draw_rounded_box(surface: pygame.Surface, rect: pygame.Rect,
                      radius: int = 12):
     # Draw rounded rectangle with compatibility handling
     bt = max(0, int(border_thickness))
+    radius = max(0, int(radius))
     if fill_color is not None:
         try:
             pygame.draw.rect(surface, fill_color, rect, 0, border_radius=radius)
-        except TypeError:
+        except Exception:
             pygame.draw.rect(surface, fill_color, rect)
     if border_color is not None and bt > 0:
         try:
             pygame.draw.rect(surface, border_color, rect, bt, border_radius=radius)
-        except TypeError:
+        except Exception:
             pygame.draw.rect(surface, border_color, rect, bt)
 
 
@@ -197,7 +198,6 @@ pygame.display.set_caption("Jay's Carnival Arcade - Finalized")
 
 # --- Sound manager ---
 import os
-import time
 from typing import Optional
 
 try:
@@ -209,53 +209,64 @@ except Exception:
 
 
 class SoundManager:
-    def __init__(self, sound_folder: str = ".", mute: Optional[bool] = None, debug: bool = False):
+    """
+    SoundManager:
+    - Loads only allowed assets (exact capitalization).
+    - Hard mute: stops playback, suppresses audio loading/activity.
+    - Minimal/no console output; fail silently on missing assets.
+    - Cup movement sound controlled (start/stop).
+    """
+
+    def __init__(self, sound_folder: str = ".", mute: Optional[bool] = None):
         try:
-            from __main__ import ACCESSIBILITY_OPTIONS  # type: ignore
             default_mute = ACCESSIBILITY_OPTIONS.get("mute", False)
         except Exception:
             default_mute = False
 
-        self.debug = bool(debug)
-        self.muted = default_mute if mute is None else bool(mute)
-        self.is_spraying = False
         self.sound_folder = sound_folder
+        self.muted = bool(default_mute) if mute is None else bool(mute)
 
-        self._min_interval = {
-            'pop': 0.08, 'swish': 0.25, 'fanfare': 1.0, 'spray': 0.15,
-            'honk': 0.6, 'bg': 10.0, 'selection': 0.08, 'buy': 0.5,
-            'cups': 0.5, 'throw': 0.06, 'error': 0.5
-        }
-        self._last_play_time = {}
-
-        self.sounds = {k: None for k in (
-            'pop','buy','cheer','cups','honk','music','selection','spray','swish','throw','throw2','error'
-        )}
-
-        self._spray_channel_index = 7
-        self._spray_channel = None
         self._mixer_ready = False
+        self._loaded = False
 
-        self._init_mixer_and_load()
+        # Channels indices
+        self._spray_channel_index = 7
+        self._cups_channel_index = 8
 
-    def _now(self):
-        return time.time()
+        self._spray_channel = None
+        self._cups_channel = None
 
-    def _can_play(self, key: str) -> bool:
-        now = self._now()
-        last = self._last_play_time.get(key, 0.0)
-        if now - last >= self._min_interval.get(key, 0.0):
-            self._last_play_time[key] = now
-            return True
-        return False
+        # Sound container (only permitted assets)
+        self.sounds = {
+            'pop': None,        # Burst.mp3
+            'buy': None,        # Buy.mp3
+            'cheer': None,      # Cheer.mp3
+            'cups': None,       # Cups.mp3
+            'music': None,      # Music.mp3 -> path string
+            'selection': None,  # Selection.mp3
+            'spray': None,      # Spray.mp3
+            'swish': None,      # Swish.mp3
+            'throw': None,      # Throw.mp3
+            'throw2': None      # Throw2.mp3
+        }
+
+        if not self.muted:
+            self._init_mixer_and_load()
+
+    def _file_path_if_exists(self, fname: str) -> Optional[str]:
+        if not fname:
+            return None
+        fpath = os.path.join(self.sound_folder, fname)
+        if os.path.isfile(fpath):
+            return fpath
+        return None
 
     def _init_mixer_and_load(self):
+        if self.muted:
+            return
         if not _HAVE_PYGAME:
             self._mixer_ready = False
-            if self.debug:
-                print("pygame not available — audio will fallback to console messages.")
             return
-
         try:
             try:
                 pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=512)
@@ -266,11 +277,15 @@ class SoundManager:
                 try:
                     pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
                 except Exception:
-                    pygame.mixer.init()
+                    try:
+                        pygame.mixer.init()
+                    except Exception:
+                        self._mixer_ready = False
+                        return
 
-            # Increase channels so UI sounds don't fail when many channels are in use.
+            # Ensure enough channels
             try:
-                needed = max(32, self._spray_channel_index + 1)
+                needed = max(32, self._spray_channel_index + 1, self._cups_channel_index + 1)
                 pygame.mixer.set_num_channels(needed)
             except Exception:
                 pass
@@ -279,144 +294,116 @@ class SoundManager:
                 self._spray_channel = pygame.mixer.Channel(self._spray_channel_index)
             except Exception:
                 self._spray_channel = None
+            try:
+                self._cups_channel = pygame.mixer.Channel(self._cups_channel_index)
+            except Exception:
+                self._cups_channel = None
 
-            desired_files = {
+            # Load allowed files with exact capitalization
+            mapping = {
                 'pop': 'Burst.mp3',
                 'buy': 'Buy.mp3',
                 'cheer': 'Cheer.mp3',
                 'cups': 'Cups.mp3',
-                'honk': 'Horn.mp3',
                 'music': 'Music.mp3',
                 'selection': 'Selection.mp3',
                 'spray': 'Spray.mp3',
                 'swish': 'Swish.mp3',
                 'throw': 'Throw.mp3',
-                'throw2': 'Throw2.mp3',
-                'error': 'Error.mp3'
+                'throw2': 'Throw2.mp3'
             }
 
-            for key, fname in desired_files.items():
-                fpath = os.path.join(self.sound_folder, fname)
-                if os.path.isfile(fpath):
+            for key, fname in mapping.items():
+                path = self._file_path_if_exists(fname)
+                if path:
                     try:
                         if key == 'music':
-                            self.sounds[key] = fpath
+                            # store path for music playback
+                            self.sounds[key] = path
                         else:
-                            snd = pygame.mixer.Sound(fpath)
+                            snd = pygame.mixer.Sound(path)
                             snd.set_volume(1.0)
                             self.sounds[key] = snd
-                        if self.debug:
-                            print(f"[LOAD] key={key} -> {fpath}")
-                    except Exception as e:
+                    except Exception:
                         self.sounds[key] = None
-                        if self.debug:
-                            print(f"[LOAD FAILED] key={key} path={fpath} error={e}")
                 else:
                     self.sounds[key] = None
-                    if self.debug:
-                        print(f"[MISSING] key={key} expected={fpath}")
 
             self._mixer_ready = True
-        except Exception as e:
+            self._loaded = True
+        except Exception:
             self._mixer_ready = False
-            if self.debug:
-                print(f"[MIXER INIT FAILED] {e}")
+            self._loaded = False
 
     def set_mute(self, muted: bool):
-        self.muted = bool(muted)
-        if self.muted and self._mixer_ready:
+        muted = bool(muted)
+        if muted == self.muted:
+            return
+        self.muted = muted
+        if self.muted:
+            # Stop music and all channels
             try:
-                pygame.mixer.music.stop()
+                if _HAVE_PYGAME and pygame.mixer.get_init():
+                    try:
+                        pygame.mixer.music.stop()
+                    except Exception:
+                        pass
+                    try:
+                        pygame.mixer.stop()
+                    except Exception:
+                        pass
             except Exception:
                 pass
+            # Mark unloaded to prevent further audio activity
+            self._loaded = False
+            self._mixer_ready = False
+        else:
+            # Re-initialize and load sounds
             try:
-                if self._spray_channel and self._spray_channel.get_busy():
-                    self._spray_channel.fadeout(150)
+                self._init_mixer_and_load()
             except Exception:
                 pass
 
     def _play_sound(self, key: str, allow_overlap: bool = True, volume: Optional[float] = None) -> bool:
         if self.muted:
-            if self.debug:
-                print(f"[MUTED] would play {key}")
             return False
-
+        if not self._loaded or not self._mixer_ready:
+            return False
         snd = self.sounds.get(key)
         if snd is None:
-            if self.debug:
-                print(f"[PLAY SKIP] sound for key='{key}' not loaded")
             return False
-
-        if isinstance(snd, str):
-            # music path should not be played here
-            if self.debug:
-                print(f"[PLAY SKIP] key='{key}' is music path, use play_background_music")
-            return False
-
-        if volume is not None:
-            try:
-                snd.set_volume(max(0.0, min(1.0, float(volume))))
-            except Exception:
-                pass
-
-        if not self._mixer_ready:
-            if self.debug:
-                print(f"[PLAY SKIP] mixer not ready for key='{key}'")
-            return False
-
         try:
+            if volume is not None:
+                try:
+                    snd.set_volume(max(0.0, min(1.0, float(volume))))
+                except Exception:
+                    pass
             if allow_overlap:
-                # Use Sound.play() — picks a free channel automatically.
                 snd.play()
-                if self.debug:
-                    print(f"[PLAY] (overlap ok) key='{key}'")
             else:
-                # Prefer to reuse a free channel. If none, fall back to snd.play() rather than silently skipping.
                 ch = pygame.mixer.find_channel()
                 if ch is None:
-                    if self.debug:
-                        print(f"[NO CHANNEL] none free for key='{key}', falling back to play()")
                     snd.play()
                 else:
                     ch.play(snd)
-                    if self.debug:
-                        print(f"[PLAY] (non-overlap) key='{key}' on channel={ch}")
             return True
-        except Exception as e:
-            if self.debug:
-                print(f"[PLAY ERROR] key='{key}' error={e}")
+        except Exception:
             return False
-
-    def _console_message_for_key(self, key: str, extra: Optional[str] = None):
-        mapping = {
-            'pop': "AUDIO[POP]: 🎈 Pop!",
-            'swish': "AUDIO[SWISH]: 🏀 Swish! Crowd cheers.",
-            'fanfare': "AUDIO[FANFARE]: 🎉 Fanfare! Celebration!",
-            'spray': "AUDIO[SPRAY]: 💦 Water spray sound.",
-            'honk': "AUDIO[HONK]: 🤡 Honk! Clown horn.",
-            'bg': "AUDIO[MUSIC]: 🎵 Background music (not playing via mixer).",
-            'selection': "AUDIO[SELECTION]: ▶ Selection click.",
-            'buy': "AUDIO[BUY]: ✔ Purchase sound.",
-            'cups': "AUDIO[CUPS]: 🔀 Cup shuffle.",
-            'throw': "AUDIO[THROW]: 🎯 Throw sound.",
-            'error': "AUDIO[ERROR]: ❌ Error / insufficient points."
-        }
-        msg = mapping.get(key, f"AUDIO[{key.upper()}]: sound")
-        if extra:
-            msg += f" ({extra})"
-        print(msg)
-
-    # Public API
 
     def play_background_music(self, loop: bool = True, volume: float = 0.2):
         if self.muted:
             return
-        if not self._can_play('bg'):
+        if not self._loaded or not self._mixer_ready:
             return
-
-        if self._mixer_ready and isinstance(self.sounds.get('music'), str):
+        music_path = self.sounds.get('music')
+        if isinstance(music_path, str):
             try:
-                music_path = self.sounds['music']
+                if not pygame.mixer.get_init():
+                    try:
+                        pygame.mixer.init()
+                    except Exception:
+                        pass
+                # If music already playing, do nothing
                 if pygame.mixer.music.get_busy():
                     return
                 pygame.mixer.music.load(music_path)
@@ -425,161 +412,112 @@ class SoundManager:
                 return
             except Exception:
                 pass
-
-        if self._mixer_ready and self.sounds.get('cheer'):
-            try:
-                self.sounds['cheer'].play()
+        # fallback: play cheer sound once if available
+        try:
+            cheer = self.sounds.get('cheer')
+            if cheer:
+                cheer.play()
                 return
-            except Exception:
-                pass
-
-        self._console_message_for_key('bg')
+        except Exception:
+            return
 
     def play_pop(self, context: Optional[str] = None):
-        if self.muted:
-            return
-        if not self._can_play('pop'):
-            return
-        if not self._play_sound('pop', allow_overlap=True, volume=0.5):
-            self._console_message_for_key('pop', extra=(f"context={context}" if context else None))
+        self._play_sound('pop', allow_overlap=True, volume=0.8)
 
-    def play_swish_cheer(self, intensity: Optional[str] = None):
-        if self.muted:
-            return
-        if not self._can_play('swish'):
-            return
-        played_sw = self._play_sound('swish', allow_overlap=True, volume=0.5)
-        if intensity and intensity.lower() in ('perfect', 'big', 'strong'):
-            if self.sounds.get('cheer'):
-                try:
-                    self.sounds['cheer'].play()
-                except Exception:
-                    pass
-            elif not played_sw:
-                self._console_message_for_key('swish')
-        else:
-            if not played_sw:
-                self._console_message_for_key('swish')
+    def play_selection(self):
+        self._play_sound('selection', allow_overlap=True, volume=0.7)
+
+    def play_buy(self):
+        self._play_sound('buy', allow_overlap=False, volume=0.9)
 
     def play_fanfare(self):
-        if self.muted:
-            return
-        if not self._can_play('fanfare'):
-            return
-        if not self._play_sound('cheer', allow_overlap=True, volume=0.95):
-            self._console_message_for_key('fanfare')
+        # Use cheer as fanfare
+        self._play_sound('cheer', allow_overlap=True, volume=0.95)
+
+    def play_swish_cheer(self, intensity: Optional[str] = None):
+        played = self._play_sound('swish', allow_overlap=True, volume=0.6)
+        if intensity and intensity.lower() in ('perfect', 'big', 'strong'):
+            # overlay cheer if available
+            self._play_sound('cheer', allow_overlap=True, volume=0.9)
+        return played
+
+    def play_throw(self, variant: int = 1):
+        if variant == 2 and self.sounds.get('throw2'):
+            if not self._play_sound('throw2', allow_overlap=True, volume=0.9):
+                self._play_sound('throw', allow_overlap=True, volume=0.9)
+        else:
+            self._play_sound('throw', allow_overlap=True, volume=0.9)
 
     def play_water_spray(self, start: bool = True):
+        if self.muted or not self._loaded or not self._mixer_ready:
+            return
         key = 'spray'
         if start:
-            if self.is_spraying:
-                return
-            self.is_spraying = True
-            if self.muted:
-                return
             snd = self.sounds.get(key)
-            if snd and self._mixer_ready:
-                try:
-                    if self._spray_channel:
-                        self._spray_channel.play(snd, loops=-1)
-                        try:
-                            self._spray_channel.set_volume(0.6)
-                        except Exception:
-                            pass
-                    else:
-                        ch = pygame.mixer.find_channel()
-                        if ch:
-                            ch.play(snd, loops=-1)
-                    if self._can_play(key):
-                        print("AUDIO[SPRAY]: 💦 Water spray started (looping).")
-                    return
-                except Exception:
-                    pass
-            if self._can_play(key):
-                print("AUDIO[SPRAY]: 💦 Water spray (no sample available).")
-        else:
-            if not self.is_spraying:
-                return
-            self.is_spraying = False
-            if self.muted:
+            if snd is None:
                 return
             try:
-                if self._spray_channel and self._spray_channel.get_busy():
-                    self._spray_channel.fadeout(250)
+                if self._spray_channel:
+                    self._spray_channel.play(snd, loops=-1)
+                    try:
+                        self._spray_channel.set_volume(0.6)
+                    except Exception:
+                        pass
+                else:
+                    ch = pygame.mixer.find_channel()
+                    if ch:
+                        ch.play(snd, loops=-1)
+            except Exception:
+                pass
+        else:
+            try:
+                if self._spray_channel:
+                    try:
+                        self._spray_channel.fadeout(250)
+                    except Exception:
+                        self._spray_channel.stop()
                 else:
                     snd = self.sounds.get(key)
                     if snd:
-                        snd.stop()
-                if self._can_play(key):
-                    print("AUDIO[SPRAY]: 💧 Water spray stopped.")
-                return
+                        try:
+                            snd.stop()
+                        except Exception:
+                            pass
             except Exception:
-                if self._can_play(key):
-                    print("AUDIO[SPRAY]: 💧 Water spray stopped (fallback).")
-                return
+                pass
 
-    def play_clown_honk(self):
-        if self.muted:
+    def start_cups(self):
+        if self.muted or not self._loaded or not self._mixer_ready:
             return
-        if not self._can_play('honk'):
+        snd = self.sounds.get('cups')
+        if snd is None:
             return
-        if not self._play_sound('honk', allow_overlap=True, volume=0.9):
-            self._console_message_for_key('honk')
+        try:
+            if self._cups_channel:
+                self._cups_channel.play(snd, loops=-1)
+            else:
+                ch = pygame.mixer.find_channel()
+                if ch:
+                    ch.play(snd, loops=-1)
+        except Exception:
+            pass
 
-    def play_selection(self):
-        # IMPORTANT: selection is UI feedback; allow overlap so clicks are always responsive.
-        if self.muted:
+    def stop_cups(self):
+        if self.muted or not self._loaded or not self._mixer_ready:
             return
-        if not self._can_play('selection'):
-            return
-        # Make selection allow overlap; UI clicks should always sound even when other audio is playing.
-        if not self._play_sound('selection', allow_overlap=True, volume=0.7):
-            # Helpful debug message
-            if self.debug:
-                print("[DEBUG] selection sound didn't play — file missing or mixer busy.")
-            self._console_message_for_key('selection')
-
-    def play_buy(self):
-        if self.muted:
-            return
-        if not self._can_play('buy'):
-            return
-        if not self._play_sound('buy', allow_overlap=False, volume=0.9):
-            if self.debug:
-                print("[DEBUG] buy sound didn't play — check Buy.mp3 presence and mixer logs.")
-            self._console_message_for_key('buy')
-
-    def play_cups(self):
-        if self.muted:
-            return
-        if not self._can_play('cups'):
-            return
-        if not self._play_sound('cups', allow_overlap=True, volume=0.9):
-            self._console_message_for_key('cups')
-
-    def play_throw(self, variant: int = 1):
-        if self.muted:
-            return
-        if not self._can_play('throw'):
-            return
-        if variant == 2 and self.sounds.get('throw2'):
-            played = self._play_sound('throw2', allow_overlap=True, volume=0.9)
-            if not played:
-                played = self._play_sound('throw', allow_overlap=True, volume=0.9)
-            if not played:
-                self._console_message_for_key('throw')
-        else:
-            if not self._play_sound('throw', allow_overlap=True, volume=0.9):
-                self._console_message_for_key('throw')
-
-    def play_error(self):
-        # Distinct error feedback (used for insufficient points, invalid actions)
-        if self.muted:
-            return
-        if not self._can_play('error'):
-            return
-        if not self._play_sound('error', allow_overlap=True, volume=0.9):
-            self._console_message_for_key('error')
+        try:
+            if self._cups_channel:
+                try:
+                    self._cups_channel.stop()
+                except Exception:
+                    pass
+            else:
+                try:
+                    pygame.mixer.stop()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
 
 # --- Prize icons & caching ---
@@ -888,7 +826,7 @@ class PrizeScreen:
             self.modal_prize_id = None
             return
 
-        if self.manager.total_score >= cost:
+        if getattr(self.manager, 'total_score', 0) >= cost:
             self.manager.total_score -= cost
             self.unlocked[pid] = True
             self.manager.prize_unlocked = self.unlocked
@@ -897,19 +835,21 @@ class PrizeScreen:
             except Exception:
                 pass
             self.modal_message = f"Purchased {prize['name']}! Congratulations!"
-            # Play purchase confirmation
+            # Play purchase confirmation using allowed assets
             try:
                 self.sound_manager.play_buy()
             except Exception:
-                # Fallback console message is already handled in SoundManager
                 pass
-            self.sound_manager.play_fanfare()
+            try:
+                self.sound_manager.play_fanfare()
+            except Exception:
+                pass
             cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)
             self.modal_buttons = {'cancel': cancel_rect}
         else:
-            # Insufficient points: play a distinct error sound (not clown honk)
+            # Insufficient points
             try:
-                self.sound_manager.play_error()
+                self.sound_manager.play_pop()
             except Exception:
                 pass
             self.modal_message = "Insufficient points! Play more to earn this prize."
@@ -1079,12 +1019,7 @@ class DartPopGame:
         score_to_report = 0
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             if not self.dart_thrown:
-                # Throw the dart — ensure throw sound is played here
-                try:
-                    self.sound_manager.play_throw()
-                except Exception:
-                    pass
-
+                # Throw the dart — ensure throw SFX not used per patch rules
                 self.dart_thrown = True
                 t = self.game_time * self.rotation_speed
                 dart_x, dart_y = self._reticle_pos(t)
@@ -1098,7 +1033,10 @@ class DartPopGame:
                             balloon['hit'] = True
                             hit_balloon = True
                             hit_score += DARTPOP_BALLOON_SCORE
-                            self.sound_manager.play_pop()
+                            try:
+                                self.sound_manager.play_pop()
+                            except Exception:
+                                pass
 
                 if hit_balloon:
                     self.hit_result = 'HIT'
@@ -1359,7 +1297,10 @@ class HoopShotGame:
             score_to_report = raw_score
             self.shot_result = f"SWISH! Perfect Shot! +{score_to_report} Points!"
             arc_type = 'swish'
-            self.sound_manager.play_swish_cheer()
+            try:
+                self.sound_manager.play_swish_cheer(intensity='perfect')
+            except Exception:
+                pass
             self.swish_combo = min(self.combo_max, self.swish_combo + 1)
         else:
             zone_center_y = self.perfect_zone_top + (self.zone_height / 2)
@@ -1372,7 +1313,7 @@ class HoopShotGame:
             arc_type = random.choice(['overshoot', 'undershoot'])
             self.swish_combo = 0
 
-        # Create projectile (basketball) and ensure throw SFX plays at release
+        # Create projectile (basketball) and ensure throw SFX plays at release if available
         new_ball = Basketball(self.shooter_x, self.shooter_y, arc_type, speed_multiplier=speed_multiplier)
         self.all_sprites.add(new_ball)
         try:
@@ -1766,7 +1707,10 @@ class ClownSplashMiniGame:
                             self.water_level = min(self.water_level, self.WATER_MAX)
                             percent = int((self.water_level / self.WATER_MAX) * 100)
                             self.message = f"Refilled +{int(added)} water! ({percent}% full)"
-                            self.sound_manager.play_pop()
+                            try:
+                                self.sound_manager.play_pop()
+                            except Exception:
+                                pass
                         else:
                             self.message = "Tank already full."
                     else:
@@ -1784,7 +1728,10 @@ class ClownSplashMiniGame:
                                 clown.clown_logic.reset()
                             except Exception:
                                 pass
-                        self.sound_manager.play_water_spray(start=False)
+                        try:
+                            self.sound_manager.play_pop()
+                        except Exception:
+                            pass
                         self.message = "Cooldown initiated..."
         return score_change
 
@@ -1799,7 +1746,6 @@ class ClownSplashMiniGame:
         if should_spray_attempt:
             if self.water_level < (self.WATER_MAX * self.start_threshold_ratio):
                 self.message = f"Tank needs {int(self.start_threshold_ratio * 100)}% to start spraying!"
-                self.sound_manager.play_water_spray(start=False)
                 self.water_gun.is_spraying = False
             else:
                 held = (self.space_held_since is not None) and (current_time - self.space_held_since >= self.spray_charge_time)
@@ -1810,7 +1756,10 @@ class ClownSplashMiniGame:
                         self.water_level -= consumption
                         self.water_level = max(0.0, self.water_level)
                         is_spraying_now = True
-                        self.sound_manager.play_water_spray(start=True)
+                        try:
+                            self.sound_manager.play_water_spray(start=True)
+                        except Exception:
+                            pass
                         percent = int((self.water_level / self.WATER_MAX) * 100)
                         self.message = f"Spraying! Water: {percent}%"
 
@@ -1840,7 +1789,10 @@ class ClownSplashMiniGame:
                         is_spraying_now = False
                         self.last_spray_time = current_time
                         self.is_in_cooldown = True
-                        self.sound_manager.play_water_spray(start=False)
+                        try:
+                            self.sound_manager.play_water_spray(start=False)
+                        except Exception:
+                            pass
                         self.message = "Tank EMPTY! Cooldown..."
                         for clown in self.clown_targets:
                             try:
@@ -1869,7 +1821,10 @@ class ClownSplashMiniGame:
                 self.message = "Press R to refill a portion of the tank."
 
         if not is_spraying_now:
-            self.sound_manager.play_water_spray(start=False)
+            try:
+                self.sound_manager.play_water_spray(start=False)
+            except Exception:
+                pass
 
         self.water_gun.is_spraying = is_spraying_now
         water_ratio = self.water_level / self.WATER_MAX if self.WATER_MAX > 0 else 0.0
@@ -1942,7 +1897,10 @@ class ClownSplashMiniGame:
 
     def cleanup(self):
         self.clown_targets.empty()
-        self.sound_manager.play_water_spray(start=False)
+        try:
+            self.sound_manager.play_water_spray(start=False)
+        except Exception:
+            pass
 
 
 # --- Cup, ShellGame, Whack implementations preserved ---
@@ -2040,6 +1998,9 @@ class ShellGameMiniGame:
         self._setup_cups()
         self._initial_reveal_sequence()
 
+        # Track if cups sound currently playing for movement
+        self._cups_sound_playing = False
+
     def _setup_cups(self):
         ball_index = random.randint(0, 2)
 
@@ -2069,11 +2030,12 @@ class ShellGameMiniGame:
         self.current_shuffle = 0
         self.shuffle_pairs = self._generate_shuffle_pairs()
         self.message = f"Shuffling {self.shuffle_count} times... Keep your eyes on the ball!"
-        # Play shuffle audio when shuffling begins
+        # Start cups movement sound when shuffling begins
         try:
-            self.sound_manager.play_cups()
+            self.sound_manager.start_cups()
+            self._cups_sound_playing = True
         except Exception:
-            pass
+            self._cups_sound_playing = False
         pygame.time.set_timer(SHUFFLE_EVENT, SHUFFLE_DURATION_MS + 100)
 
     def _generate_shuffle_pairs(self):
@@ -2091,9 +2053,11 @@ class ShellGameMiniGame:
             pygame.time.set_timer(SHUFFLE_EVENT, 0)
             self.state = "WAITING_CHOICE"
             self.message = "Where is the ball? Click on a cup!"
-            # Prompt the user — selection UI feedback is appropriate here (not clown honk)
+            # Stop cups sound since movement ended
             try:
-                self.sound_manager.play_selection()
+                if self._cups_sound_playing:
+                    self.sound_manager.stop_cups()
+                    self._cups_sound_playing = False
             except Exception:
                 pass
             return
@@ -2127,7 +2091,10 @@ class ShellGameMiniGame:
             if chosen_cup.has_ball:
                 score_to_report = SHELLGAME_WIN_SCORE
                 self.message = f"CONGRATS! You found the ball! +{score_to_report} Points! (Game resets soon)"
-                self.sound_manager.play_fanfare()
+                try:
+                    self.sound_manager.play_fanfare()
+                except Exception:
+                    pass
             else:
                 score_to_report = 0
                 self.message = "Too bad! The ball was not there. (Game resets soon)"
@@ -2155,6 +2122,20 @@ class ShellGameMiniGame:
 
     def update(self, dt):
         self.all_sprites.update()
+        # Cup movement sound control: start if any cup moving and not already playing; stop if none moving and was playing
+        any_moving = any(cup.is_moving for cup in self.cups)
+        if any_moving and not self._cups_sound_playing:
+            try:
+                self.sound_manager.start_cups()
+                self._cups_sound_playing = True
+            except Exception:
+                self._cups_sound_playing = False
+        if not any_moving and self._cups_sound_playing:
+            try:
+                self.sound_manager.stop_cups()
+            except Exception:
+                pass
+            self._cups_sound_playing = False
         return 0
 
     def draw(self):
@@ -2170,6 +2151,12 @@ class ShellGameMiniGame:
     def cleanup(self):
         pygame.time.set_timer(SHUFFLE_EVENT, 0)
         self.all_sprites.empty()
+        try:
+            if self._cups_sound_playing:
+                self.sound_manager.stop_cups()
+                self._cups_sound_playing = False
+        except Exception:
+            pass
 
 
 class WhackTarget(pygame.sprite.Sprite):
@@ -2266,9 +2253,8 @@ class WhackAMoleGame:
                 gained = self.active_target.whack()
                 score_change += gained
                 if gained > 0:
-                    # Play clown honk only on successful hit (per requirements)
                     try:
-                        self.sound_manager.play_clown_honk()
+                        self.sound_manager.play_pop()
                     except Exception:
                         pass
                 self.hits += 1
@@ -2343,7 +2329,7 @@ class ArcadeManager:
 
         self.title_font = safe_font(size=52)
         self.header_font = safe_font(size=34)
-        self.button_font = safe_font(size=24)
+        self.button_font = safe_font(size=22)  # slightly reduced per UI constraints
         self.ui_font = safe_font(size=20)
         self.small_font = safe_font(size=16)
 
@@ -2390,6 +2376,7 @@ class ArcadeManager:
             STATE_WHACK: "Whack-A-Clown",
         }
 
+        # default show_fps moved into settings (per requirement)
         self.show_fps = False
 
         # settings
@@ -2398,6 +2385,9 @@ class ArcadeManager:
             "monochrome": ACCESSIBILITY_OPTIONS["monochrome"],
             "mute_audio": ACCESSIBILITY_OPTIONS["mute"],
             "reticle_alt": ACCESSIBILITY_OPTIONS["reticle_alt"],
+            "fps_in_settings": False,  # relocated FPS toggle inside settings
+            "timer_enabled": True,     # Game timer toggle default ON
+            "timer_seconds": 60,       # Default timer length
         }
 
         # Smooth time scale transition variables
@@ -2413,17 +2403,27 @@ class ArcadeManager:
 
         self.settings_toggle_rects = []
 
-        # Track last hovered menu button to emit selection SFX on hover enter
+        # Track last hovered menu button to optionally emit selection SFX on hover enter
         self._menu_last_hovered = None
 
         # Ensure mute is applied using set_mute to immediately silence audio
         try:
             self.sound_manager.set_mute(self.settings["mute_audio"])
         except Exception:
-            self.sound_manager.muted = self.settings["mute_audio"]
+            pass
         ACCESSIBILITY_OPTIONS["reticle_alt"] = self.settings["reticle_alt"]
 
-        self.sound_manager.play_background_music()
+        # Timers and stats integration
+        self.timer_active = False
+        self.timer_remaining = 0.0
+        self.timed_games_played = 0
+        self.timed_game_records = []  # list of dicts {'game': id, 'score': total_score, 'timestamp': ...}
+
+        # ensure background music starts if available
+        try:
+            self.sound_manager.play_background_music()
+        except Exception:
+            pass
 
     # Persistence helpers
     def _load_scores(self):
@@ -2481,9 +2481,11 @@ class ArcadeManager:
         try:
             self.sound_manager.set_mute(self.settings["mute_audio"])
         except Exception:
-            self.sound_manager.muted = self.settings["mute_audio"]
+            pass
         ACCESSIBILITY_OPTIONS["monochrome"] = self.settings["monochrome"]
         ACCESSIBILITY_OPTIONS["reticle_alt"] = self.settings["reticle_alt"]
+        # FPS toggle moved to settings: sync show_fps with settings
+        self.show_fps = bool(self.settings.get("fps_in_settings", False))
 
     # Input handling
     def _handle_input(self):
@@ -2492,8 +2494,7 @@ class ArcadeManager:
                 self.running = False
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_F1:
-                    self.show_fps = not self.show_fps
+                # F1 handling removed per requirement — FPS toggle only in settings
                 if event.key == pygame.K_ESCAPE:
                     if self.modal_active:
                         self.modal_active = False
@@ -2516,6 +2517,9 @@ class ArcadeManager:
                                     current_game.reset()
                             except Exception:
                                 pass
+                        # Stop active timer if any
+                        self.timer_active = False
+                        self.timer_remaining = 0.0
                         self.state = STATE_MENU
                     elif self.state == STATE_MENU:
                         self.running = False
@@ -2547,11 +2551,7 @@ class ArcadeManager:
 
             if self.state == STATE_MENU:
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    # Play selection SFX for any menu button click
-                    try:
-                        self.sound_manager.play_selection()
-                    except Exception:
-                        pass
+                    # No UI click sounds per patch rules
 
                     if self.prize_button_rect.collidepoint(event.pos):
                         self.state = STATE_PRIZES
@@ -2586,6 +2586,13 @@ class ArcadeManager:
                                 if g and hasattr(g, 'reset'):
                                     g.reset()
                                 self.current_game_score = 0
+                                # Start game timer if enabled in settings
+                                if self.settings.get("timer_enabled", False):
+                                    self.timer_active = True
+                                    self.timer_remaining = float(self.settings.get("timer_seconds", 60))
+                                else:
+                                    self.timer_active = False
+                                    self.timer_remaining = 0.0
                             break
 
             elif self.state == STATE_SETTINGS:
@@ -2593,7 +2600,8 @@ class ArcadeManager:
                     mpos = event.pos
                     if hasattr(self, 'settings_toggle_rects'):
                         toggles = self.settings_toggle_rects
-                        if toggles and len(toggles) >= 4:
+                        # Defensive: ensure enough toggles
+                        if toggles and len(toggles) >= 6:
                             if toggles[0].collidepoint(mpos):
                                 self.settings["slow_game"] = not self.settings["slow_game"]
                                 self._apply_settings()
@@ -2605,6 +2613,12 @@ class ArcadeManager:
                                 self._apply_settings()
                             elif toggles[3].collidepoint(mpos):
                                 self.settings["reticle_alt"] = not self.settings["reticle_alt"]
+                                self._apply_settings()
+                            elif toggles[4].collidepoint(mpos):
+                                self.settings["fps_in_settings"] = not self.settings["fps_in_settings"]
+                                self._apply_settings()
+                            elif toggles[5].collidepoint(mpos):
+                                self.settings["timer_enabled"] = not self.settings["timer_enabled"]
                                 self._apply_settings()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_1:
@@ -2618,6 +2632,12 @@ class ArcadeManager:
                         self._apply_settings()
                     elif event.key == pygame.K_4:
                         self.settings["reticle_alt"] = not self.settings["reticle_alt"]
+                        self._apply_settings()
+                    elif event.key == pygame.K_5:
+                        self.settings["fps_in_settings"] = not self.settings["fps_in_settings"]
+                        self._apply_settings()
+                    elif event.key == pygame.K_6:
+                        self.settings["timer_enabled"] = not self.settings["timer_enabled"]
                         self._apply_settings()
 
             elif self.state == STATE_PRIZES:
@@ -2653,21 +2673,21 @@ class ArcadeManager:
             self._save_unlocks()
             self.modal_message = f"{self.game_names.get(state_id)} unlocked! Enjoy the game."
             self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)}
-            # Play success buy+fanfare
             try:
                 self.sound_manager.play_buy()
             except Exception:
                 pass
-            self.sound_manager.play_fanfare()
-        else:
-            # Insufficient: play error sound (not clown honk)
             try:
-                self.sound_manager.play_error()
+                self.sound_manager.play_fanfare()
+            except Exception:
+                pass
+        else:
+            try:
+                self.sound_manager.play_pop()
             except Exception:
                 pass
             self.modal_message = "Insufficient points to unlock this game."
             self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)}
-            # Do not call clown honk here
 
     def _update_state(self, dt):
         # Smoothly interpolate current time scale toward target
@@ -2675,7 +2695,41 @@ class ArcadeManager:
         self.time_scale_current += (self.time_scale_target - self.time_scale_current) * t
         scaled_dt = dt * self.time_scale_current
 
+        # Update active game timer if enabled
         if self.state in self.games and self.state != STATE_PRIZES:
+            # Handle timer decrement
+            if self.timer_active and self.settings.get("timer_enabled", False):
+                self.timer_remaining -= scaled_dt
+                if self.timer_remaining <= 0.0:
+                    # Timer expired: finalize game, save stats, and move to results/stats
+                    final_score = self.current_game_score
+                    # Update high score if applicable
+                    try:
+                        if self.state in self.game_high_scores and final_score > self.game_high_scores[self.state]:
+                            self.game_high_scores[self.state] = final_score
+                    except Exception:
+                        pass
+                    # Record timed session
+                    record = {'game': self.state, 'score': int(final_score), 'timestamp': time.time()}
+                    self.timed_game_records.append(record)
+                    self.timed_games_played += 1
+                    # Cleanup current game
+                    current_game = self.games.get(self.state)
+                    if current_game:
+                        try:
+                            current_game.cleanup()
+                            if hasattr(current_game, 'reset'):
+                                current_game.reset()
+                        except Exception:
+                            pass
+                    # Reset session game score and timer
+                    self.current_game_score = 0
+                    self.timer_active = False
+                    self.timer_remaining = 0.0
+                    # Switch to stats screen to display results
+                    self.state = STATE_STATS
+                    return
+
             score_change = self.games[self.state].update(scaled_dt)
             if score_change > 0:
                 self.total_score += score_change
@@ -2699,7 +2753,7 @@ class ArcadeManager:
         overlay_height = 560
         overlay_rect = pygame.Rect(
             SCREEN_WIDTH // 2 - overlay_width // 2,
-            80,
+            70,  # moved slightly up per requirement
             overlay_width,
             overlay_height
         )
@@ -2712,7 +2766,7 @@ class ArcadeManager:
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, 58))
         self.screen.blit(title_surf, title_rect)
 
-        square_size = 50
+        square_size = 46  # reduced size per requirement
         left_margin = 10
 
         stats_top = SCREEN_HEIGHT - PLAY_AREA_MARGIN - square_size - 10
@@ -2753,7 +2807,7 @@ class ArcadeManager:
         self.prize_button_rect = prize_button_rect
 
         y_start = overlay_rect.top + 40
-        button_height = 52
+        button_height = 48  # slightly reduced
         button_width = overlay_width - 60
         button_left = overlay_rect.left + 30
 
@@ -2762,8 +2816,7 @@ class ArcadeManager:
 
         ordered = [STATE_DARTPOP, STATE_HOOPSHOT, STATE_SPLASH, STATE_WHACK, STATE_SHELLGAME]
 
-        # Hover SFX: if hovered button changes, play UI selection
-        current_hovered = None
+        # Hover SFX removed per patch rules: no button sounds
 
         for i, state_id in enumerate(ordered):
             rect = pygame.Rect(button_left, y_start + i * (button_height + BUTTON_SPACING), button_width, button_height)
@@ -2778,8 +2831,6 @@ class ArcadeManager:
 
             button_text = self.game_names.get(state_id, "Unknown") + lock_text
             hover = rect.collidepoint(mouse_pos)
-            if hover:
-                current_hovered = state_id
             color = CARNIVAL_RED
             if state_id == STATE_HOOPSHOT:
                 color = HOOP_BLUE
@@ -2794,16 +2845,7 @@ class ArcadeManager:
             draw_button(self.screen, button_text, rect, color, text_color, self.button_font, locked=is_locked, hover=hover)
             self.button_rects[state_id] = rect
 
-        # If hovered changed since last frame, play a selection SFX (throttled by SoundManager)
-        if current_hovered != self._menu_last_hovered:
-            self._menu_last_hovered = current_hovered
-            if current_hovered is not None:
-                try:
-                    self.sound_manager.play_selection()
-                except Exception:
-                    pass
-
-        inst_surf = self.small_font.render("Press ESC to exit Arcade | F1: Toggle FPS", True, UI_PLAYFUL)
+        inst_surf = self.small_font.render("Press ESC to exit Arcade", True, UI_PLAYFUL)
         self.screen.blit(inst_surf, (SCREEN_WIDTH // 2 - inst_surf.get_width() // 2, SCREEN_HEIGHT - 30))
 
     def _draw_settings_screen(self):
@@ -2811,8 +2853,9 @@ class ArcadeManager:
         overlay.fill((0, 0, 0, 180))
         self.screen.blit(overlay, (0, 0))
 
+        # Adjust panel height to accommodate two extra toggles
         panel_w = 520
-        panel_h = 300
+        panel_h = 380
         panel_rect = pygame.Rect(
             SCREEN_WIDTH // 2 - panel_w // 2,
             SCREEN_HEIGHT // 2 - panel_h // 2,
@@ -2858,7 +2901,7 @@ class ArcadeManager:
         row_top += row_height + 10
         r3_rect = pygame.Rect(panel_rect.left + 12, row_top, panel_rect.width - 24, row_height)
         draw_rounded_box(self.screen, r3_rect, fill_color=(30, 30, 40), border_color=None, border_thickness=0, radius=10)
-        label3 = self.ui_font.render("Mute Audio", True, UI_PLAYFUL)
+        label3 = self.ui_font.render("Mute Audio (Hard Disable)", True, UI_PLAYFUL)
         self.screen.blit(label3, (left_text_x, row_top + (row_height - label3.get_height()) // 2))
         toggle3_rect = pygame.Rect(toggle_right_x, row_top + (row_height - toggle_box_size) // 2, toggle_box_size, toggle_box_size)
         draw_rounded_box(self.screen, toggle3_rect, fill_color=(60, 60, 60), border_color=CARNIVAL_YELLOW, border_thickness=2, radius=8)
@@ -2878,9 +2921,33 @@ class ArcadeManager:
             pygame.draw.circle(self.screen, UI_PLAYFUL, toggle4_rect.center, toggle_box_size // 3)
         toggle_rects.append(toggle4_rect)
 
+        # Row 5: FPS toggle (moved here)
+        row_top += row_height + 10
+        r5_rect = pygame.Rect(panel_rect.left + 12, row_top, panel_rect.width - 24, row_height)
+        draw_rounded_box(self.screen, r5_rect, fill_color=(30, 30, 40), border_color=None, border_thickness=0, radius=10)
+        label5 = self.ui_font.render("Show FPS (Only in Settings)", True, UI_PLAYFUL)
+        self.screen.blit(label5, (left_text_x, row_top + (row_height - label5.get_height()) // 2))
+        toggle5_rect = pygame.Rect(toggle_right_x, row_top + (row_height - toggle_box_size) // 2, toggle_box_size, toggle_box_size)
+        draw_rounded_box(self.screen, toggle5_rect, fill_color=(60, 60, 60), border_color=CARNIVAL_YELLOW, border_thickness=2, radius=8)
+        if self.settings["fps_in_settings"]:
+            pygame.draw.circle(self.screen, UI_PLAYFUL, toggle5_rect.center, toggle_box_size // 3)
+        toggle_rects.append(toggle5_rect)
+
+        # Row 6: Game Timer toggle (default 60 seconds)
+        row_top += row_height + 10
+        r6_rect = pygame.Rect(panel_rect.left + 12, row_top, panel_rect.width - 24, row_height)
+        draw_rounded_box(self.screen, r6_rect, fill_color=(30, 30, 40), border_color=None, border_thickness=0, radius=10)
+        label6 = self.ui_font.render(f"Game Timer Enabled (Default {int(self.settings.get('timer_seconds', 60))}s)", True, UI_PLAYFUL)
+        self.screen.blit(label6, (left_text_x, row_top + (row_height - label6.get_height()) // 2))
+        toggle6_rect = pygame.Rect(toggle_right_x, row_top + (row_height - toggle_box_size) // 2, toggle_box_size, toggle_box_size)
+        draw_rounded_box(self.screen, toggle6_rect, fill_color=(60, 60, 60), border_color=CARNIVAL_YELLOW, border_thickness=2, radius=8)
+        if self.settings["timer_enabled"]:
+            pygame.draw.circle(self.screen, UI_PLAYFUL, toggle6_rect.center, toggle_box_size // 3)
+        toggle_rects.append(toggle6_rect)
+
         self.settings_toggle_rects = toggle_rects
 
-        hint_surf = self.small_font.render("Click toggles or press 1/2/3/4 to toggle. ESC to return.", True, UI_PLAYFUL)
+        hint_surf = self.small_font.render("Click toggles or press 1/2/3/4/5/6 to toggle. ESC to return.", True, UI_PLAYFUL)
         self.screen.blit(hint_surf, (panel_rect.left + panel_w // 2 - hint_surf.get_width() // 2, panel_rect.bottom - 25))
 
     def _draw_stats_screen(self):
@@ -2888,7 +2955,7 @@ class ArcadeManager:
         overlay.fill((0, 0, 0, 200))
         self.screen.blit(overlay, (0, 0))
 
-        panel_w, panel_h = 520, 380
+        panel_w, panel_h = 520, 420
         panel_rect = pygame.Rect(
             SCREEN_WIDTH // 2 - panel_w // 2,
             SCREEN_HEIGHT // 2 - panel_h // 2,
@@ -2918,6 +2985,19 @@ class ArcadeManager:
             self.screen.blit(score_surf, score_surf.get_rect(center=(panel_center_x, y_pos)))
             y_pos += 40
 
+        # Display timed games stats appended
+        y_pos += 10
+        timed_header = self.ui_font.render(f"Timed Games Played: {self.timed_games_played}", True, UI_PLAYFUL)
+        self.screen.blit(timed_header, (panel_center_x - timed_header.get_width() // 2, y_pos))
+        y_pos += 30
+        if self.timed_game_records:
+            last = self.timed_game_records[-1]
+            last_game = self.game_names.get(last.get('game', ''), "Unknown")
+            last_score = last.get('score', 0)
+            last_line = self.small_font.render(f"Last Timed: {last_game} | Score: {last_score}", True, WHITE)
+            self.screen.blit(last_line, (panel_center_x - last_line.get_width() // 2, y_pos))
+            y_pos += 30
+
         exit_surf = self.ui_font.render("Press SPACE to return to Menu", True, UI_PLAYFUL)
         self.screen.blit(exit_surf, exit_surf.get_rect(center=(panel_center_x, panel_rect.bottom - 20)))
 
@@ -2929,6 +3009,15 @@ class ArcadeManager:
         total_text = f"TOTAL: {self.total_score} | ESC to Menu"
         total_surf = self.ui_font.render(total_text, True, UI_PLAYFUL)
         self.screen.blit(total_surf, (SCREEN_WIDTH - total_surf.get_width() - 10, 30))
+
+        # Draw timer if active
+        if self.timer_active:
+            try:
+                time_left = max(0, int(self.timer_remaining))
+                timer_surf = self.ui_font.render(f"Timer: {time_left}s", True, UI_PLAYFUL)
+                self.screen.blit(timer_surf, (SCREEN_WIDTH - timer_surf.get_width() - 10, 50))
+            except Exception:
+                pass
 
     # Monochrome: use surfarray + numpy if available to avoid per-pixel Python loops and pixelation
     def _apply_monochrome_filter(self):

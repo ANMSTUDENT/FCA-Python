@@ -579,7 +579,7 @@ def create_prize_icon_surf(icon_id: str, size: int = 64):
         pygame.draw.circle(surf, BLACK, (deck_x + 10, deck_y + deck_h + wheel_r), wheel_r)
         pygame.draw.circle(surf, BLACK, (deck_x + deck_w - 10, deck_y + deck_h + wheel_r), wheel_r)
         # handlebar
-        pygame.draw.line(surf, (60, 60, 60), (deck_x + 10, deck_y - 8), (deck_x + 10, deck_y - 28), 4)
+        pygame.draw.line(surf, (60, 60, 60), (deck_x + 10, deck_y), (deck_x + 10, deck_y - 28), 4)
         pygame.draw.line(surf, (60, 60, 60), (deck_x + 2, deck_y - 28), (deck_x + 18, deck_y - 28), 4)
 
     elif icon_id == "car":

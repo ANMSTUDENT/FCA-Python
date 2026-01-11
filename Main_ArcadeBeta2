@@ -2746,10 +2746,7 @@ class ArcadeManager:
             overlay_width,
             overlay_height
         )
-        overlay_surf = pygame.Surface((overlay_width, overlay_height), pygame.SRCALPHA)
-        overlay_surf.fill((0, 0, 0, 150))
-        self.screen.blit(overlay_surf, overlay_rect.topleft)
-        draw_rounded_box(self.screen, overlay_rect, fill_color=None, border_color=CARNIVAL_YELLOW, border_thickness=5, radius=26)
+        draw_rounded_box(self.screen, overlay_rect, fill_color=(25, 35, 50), border_color=CARNIVAL_YELLOW, border_thickness=5, radius=26)
 
         title_surf = self.title_font.render("JAY'S CARNIVAL ARCADE", True, CARNIVAL_YELLOW)
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, 58))
@@ -2760,7 +2757,7 @@ class ArcadeManager:
 
         stats_top = SCREEN_HEIGHT - PLAY_AREA_MARGIN - square_size - 10
         stats_button_rect = pygame.Rect(left_margin, stats_top, square_size, square_size)
-        draw_rounded_box(self.screen, stats_button_rect, fill_color=(60, 60, 60), border_color=CARNIVAL_YELLOW, border_thickness=3, radius=12)
+        draw_rounded_box(self.screen, stats_button_rect, fill_color=(25, 35, 50), border_color=CARNIVAL_YELLOW, border_thickness=3, radius=12)
         bar_w = 8
         gap = 6
         bar_left = stats_button_rect.left + 6
@@ -2772,7 +2769,7 @@ class ArcadeManager:
 
         settings_top = stats_top - square_size - 10
         settings_button_rect = pygame.Rect(left_margin, settings_top, square_size, square_size)
-        draw_rounded_box(self.screen, settings_button_rect, fill_color=(30, 30, 30), border_color=CARNIVAL_YELLOW, border_thickness=3, radius=12)
+        draw_rounded_box(self.screen, settings_button_rect, fill_color=(25, 35, 50), border_color=CARNIVAL_YELLOW, border_thickness=3, radius=12)
         gear_center = (settings_button_rect.left + square_size // 2, settings_button_rect.top + square_size // 2)
         pygame.draw.circle(self.screen, UI_PLAYFUL, gear_center, 10)
         tooth_w = 4
@@ -2785,7 +2782,7 @@ class ArcadeManager:
 
         prize_top = settings_top - square_size - 10
         prize_button_rect = pygame.Rect(left_margin, prize_top, square_size, square_size)
-        draw_rounded_box(self.screen, prize_button_rect, fill_color=(45, 45, 60), border_color=CARNIVAL_YELLOW, border_thickness=3, radius=12)
+        draw_rounded_box(self.screen, prize_button_rect, fill_color=(25, 35, 50), border_color=CARNIVAL_YELLOW, border_thickness=3, radius=12)
         gift_center_x = prize_button_rect.left + square_size // 2
         gift_center_y = prize_button_rect.top + square_size // 2
         box_w = 28

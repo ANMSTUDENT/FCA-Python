@@ -750,15 +750,15 @@ class PrizeScreen:
                         self.modal_active = True
                         self.modal_prize_id = pid
                         self.modal_message = f"You already own the {self._prize_by_id(pid)['name']}!"
-                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 10, 120, 36)
+                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 26, 120, 36)
                         self.modal_buttons = {'cancel': cancel_rect}
                     else:
                         self.modal_active = True
                         self.modal_prize_id = pid
                         cost = self._prize_by_id(pid)['cost']
                         self.modal_message = f"Purchase {self._prize_by_id(pid)['name']} for {cost} points?"
-                        buy_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 30, 120, 36)
-                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 30, 120, 36)
+                        buy_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 26, 120, 36)
+                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 26, 120, 36)
                         self.modal_buttons = {'buy': buy_rect, 'cancel': cancel_rect}
                     break
 
@@ -796,11 +796,11 @@ class PrizeScreen:
                 self.sound_manager.play_fanfare()
             except Exception:
                 pass
-            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)
+            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 26, 120, 36)
             self.modal_buttons = {'cancel': cancel_rect}
         else:
             self.modal_message = "Insufficient points! Play more to earn this prize."
-            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)
+            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 26, 120, 36)
             self.modal_buttons = {'cancel': cancel_rect}
 
     def update(self, dt):
@@ -2353,8 +2353,8 @@ class ArcadeManager:
         game_name = self.game_names.get(state_id, "Unknown")
         cost = WHACK_GAME_UNLOCK_SCORE if state_id == STATE_WHACK else SHELL_GAME_UNLOCK_SCORE
         self.modal_message = f"Unlock {game_name} permanently for {cost} points? This will deduct points from your total."
-        purchase_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 30, 120, 25)
-        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 30, 120, 25)
+        purchase_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 26, 120, 25)
+        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 26, 120, 25)
         self.modal_buttons = {'purchase': purchase_rect, 'cancel': cancel_rect}
 
     def _attempt_unlock_game(self, state_id: int):
@@ -2364,7 +2364,7 @@ class ArcadeManager:
             self.game_unlocked[str(state_id)] = True
             self._save_unlocks()
             self.modal_message = f"{self.game_names.get(state_id)} unlocked! Enjoy the game."
-            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)}
+            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 26, 120, 36)}
             try:
                 self.sound_manager.play_buy()
             except Exception:
@@ -2375,7 +2375,7 @@ class ArcadeManager:
                 pass
         else:
             self.modal_message = "Insufficient points to unlock this game."
-            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)}
+            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 26, 120, 36)}
 
     def _update_state(self, dt):
         t = max(0.0, min(1.0, dt * self.time_scale_lerp_speed))

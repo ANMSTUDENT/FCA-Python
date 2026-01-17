@@ -1,4 +1,9 @@
-# RESOURCE PATH BOILERPLATE
+# FCA Jay's Carnival Arcade 
+# Jayce McGibbon 
+# 01/12/2026 
+# This comprehensive arcade simulation integrates a variety of classic carnival challenges, including physics-based projectile mechanics and probability-driven logic, to provide a multifaceted interactive experience. (Juicemind version not recommended, use .exe version for performance, resolution fix, and audio support.)
+
+# Module Imports
 import pygame
 import sys
 import time
@@ -8,27 +13,21 @@ import json
 import os
 from typing import List, Optional, Tuple
 
-# RESOURCE PATH FUNCTIONALITY
-def resource_path(relative_path):
-    try:
-        base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
-# COLOUR PALETTE
+# Screen Dimensions
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 FPS = 60
 
-# UNLOCK THRESHOLDS
+# Unlock Thresholds
 WHACK_GAME_UNLOCK_SCORE = 500
 SHELL_GAME_UNLOCK_SCORE = 1500
 
+# Layout Constants
 PLAY_AREA_MARGIN = 50
 UI_PADDING = 12
 BUTTON_SPACING = 12
 
+# Color Constants
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 DARK_GRAY = (80, 80, 80)
@@ -44,7 +43,7 @@ OG_ORANGE = (255, 140, 0)
 OG_BROWN = (139, 69, 19)
 OG_WATER_CYAN = (100, 200, 255)
 
-# STATE ENUM
+# State Identifiers
 STATE_MENU = 0
 STATE_DARTPOP = 1
 STATE_HOOPSHOT = 2
@@ -55,21 +54,23 @@ STATE_STATS = 6
 STATE_WHACK = 7
 STATE_SETTINGS = 8
 
-# GAME CONSTANTS
+# Physics Parameters
 HIT_SCORE_INTERVAL = 0.5
 MAX_SWING_ANGLE = math.pi / 4.5
 SWING_SPEED = 1.0
 STREAM_LENGTH = 450
 
+# Event Timing
 SHUFFLE_EVENT = pygame.USEREVENT + 1
 SHUFFLE_DURATION_MS = 500
 INITIAL_REVEAL_DURATION_MS = 1500
 
+# Persistence Files
 SCORES_FILE = "arcade_high_scores.json"
 PRIZE_STATE_FILE = "arcade_prize_state.json"
 UNLOCK_STATE_FILE = "arcade_unlocks.json"
 
-# PRIZE DATA
+# Prize Catalog
 PRIZES = [
     {"id": "car", "name": "New Car", "cost": 50000},
     {"id": "scooter", "name": "Electric Scooter", "cost": 10000},
@@ -81,7 +82,7 @@ PRIZES = [
     {"id": "teddy", "name": "Teddy Bear", "cost": 500},
 ]
 
-# SCORE ECONOMY
+# Score Scaling
 SCORE_SCALE_GLOBAL = 0.4
 
 DARTPOP_BALLOON_SCORE = int(100 * SCORE_SCALE_GLOBAL)
@@ -96,7 +97,7 @@ WHACK_HIT_SCORE = int(75 * SCORE_SCALE_GLOBAL)
 
 SPLASH_BULLSEYE_SCORE = max(1, int(10 * SCORE_SCALE_GLOBAL))
 
-# ACCESSIBILITY DEFAULTS
+# Accessibility Options
 ACCESSIBILITY_OPTIONS = {
     "mute": False,
     "monochrome": False,
@@ -104,7 +105,7 @@ ACCESSIBILITY_OPTIONS = {
     "reticle_alt": False,
 }
 
-# ATOMIC JSON WRITE
+# File Persistence
 def atomic_write_json(path: str, data):
     try:
         dirpath = os.path.dirname(path) or "."
@@ -119,7 +120,7 @@ def atomic_write_json(path: str, data):
         except Exception:
             pass
 
-# SAFE FONT LOADER
+# Font Handling
 def safe_font(name=None, size=24, bold=False):
     try:
         if name:
@@ -129,7 +130,7 @@ def safe_font(name=None, size=24, bold=False):
     except Exception:
         return pygame.font.Font(pygame.font.get_default_font(), size)
 
-# TEXT WRAPPING UTILITY
+# Text Wrapping
 def wrap_text(font: pygame.font.Font, text: str, max_width: int) -> List[str]:
     words = text.split(' ')
     lines = []
@@ -146,7 +147,7 @@ def wrap_text(font: pygame.font.Font, text: str, max_width: int) -> List[str]:
     lines.append(current_line)
     return lines
 
-# ROUNDED BOX DRAWING
+# Rounded Rendering
 def draw_rounded_box(surface: pygame.Surface, rect: pygame.Rect,
                      fill_color: Optional[tuple] = None,
                      border_color: Optional[tuple] = None,
@@ -165,7 +166,7 @@ def draw_rounded_box(surface: pygame.Surface, rect: pygame.Rect,
         except Exception:
             pygame.draw.rect(surface, border_color, rect, bt)
 
-# BUTTON RENDERER
+# Button Rendering
 def draw_button(surface, text, rect, color, text_color, font, locked=False, hover=False):
     base_color = DARK_GRAY if locked else color
     if hover and not locked:
@@ -186,7 +187,7 @@ def draw_button(surface, text, rect, color, text_color, font, locked=False, hove
     text_rect = text_surface.get_rect(center=(rect.left + rect.width // 2, rect.top + rect.height // 2))
     surface.blit(text_surface, text_rect)
 
-# PYGAME INIT
+# Initialization
 pygame.init()
 try:
     pygame.mixer.init()
@@ -194,10 +195,10 @@ except Exception:
     pass
 pygame.display.set_caption("Jay's Carnival Arcade")
 
+# Module Reimport Guard
 import os
 from typing import Optional
 
-# PYGAME AVAILABILITY FLAG
 try:
     import pygame
     _HAVE_PYGAME = True
@@ -205,9 +206,8 @@ except Exception:
     pygame = None
     _HAVE_PYGAME = False
 
-# SOUND MANAGER CLASS
+# Sound Management
 class SoundManager:
-    # SOUND MANAGER INITIALIZER
     def __init__(self, sound_folder: str = ".", mute: Optional[bool] = None):
         try:
             default_mute = ACCESSIBILITY_OPTIONS.get("mute", False)
@@ -248,26 +248,14 @@ class SoundManager:
             except Exception:
                 pass
 
-    # SOUNDMANAGER FILEPATH RESOLUTION
     def _file_path_if_exists(self, fname: str) -> Optional[str]:
         if not fname:
             return None
-        try:
-            if fname.lower().endswith('.mp3'):
-                candidate = resource_path(os.path.join("Sounds", fname)) if not os.path.isabs(fname) else fname
-                if os.path.isfile(candidate):
-                    return candidate
-            fpath = os.path.join(self.sound_folder, fname)
-            if os.path.isfile(fpath):
-                return fpath
-            alt = os.path.join("Sounds", fname)
-            if os.path.isfile(alt):
-                return alt
-        except Exception:
-            pass
+        fpath = os.path.join(self.sound_folder, fname)
+        if os.path.isfile(fpath):
+            return fpath
         return None
 
-    # SOUND MANAGER MIXER INIT & LOAD
     def _init_mixer_and_load(self):
         if not _HAVE_PYGAME:
             self._mixer_ready = False
@@ -331,7 +319,6 @@ class SoundManager:
             self._mixer_ready = False
             self._loaded = False
 
-    # SOUND MANAGER MUTE SETTER
     def set_mute(self, muted: bool):
         muted = bool(muted)
         if muted == self.muted:
@@ -371,7 +358,6 @@ class SoundManager:
         except Exception:
             pass
 
-    # GENERIC PLAY SOUND HELPER
     def _play_sound(self, key: str, allow_overlap: bool = True, volume: Optional[float] = None) -> bool:
         if self.muted:
             return False
@@ -398,7 +384,6 @@ class SoundManager:
         except Exception:
             return False
 
-    # BACKGROUND MUSIC PLAYER
     def play_background_music(self, loop: bool = True, volume: float = 0.2):
         if self.muted:
             return
@@ -428,30 +413,24 @@ class SoundManager:
         except Exception:
             return
 
-    # PLAY POP SFX
     def play_pop(self, context: Optional[str] = None):
         self._play_sound('pop', allow_overlap=True, volume=0.8)
 
-    # PLAY SELECTION SFX
     def play_selection(self):
         self._play_sound('selection', allow_overlap=True, volume=0.7)
 
-    # PLAY BUY SFX
     def play_buy(self):
         self._play_sound('buy', allow_overlap=False, volume=0.9)
 
-    # PLAY FANFARE SFX
     def play_fanfare(self):
         self._play_sound('cheer', allow_overlap=True, volume=0.95)
 
-    # PLAY SWISH + CHEER COMBO
     def play_swish_cheer(self, intensity: Optional[str] = None):
         played = self._play_sound('swish', allow_overlap=True, volume=0.6)
         if intensity and intensity.lower() in ('perfect', 'big', 'strong'):
             self._play_sound('cheer', allow_overlap=True, volume=0.9)
         return played
 
-    # PLAY THROW SFX
     def play_throw(self, variant: int = 1):
         if variant == 2 and self.sounds.get('throw2'):
             if not self._play_sound('throw2', allow_overlap=True, volume=0.9):
@@ -459,7 +438,6 @@ class SoundManager:
         else:
             self._play_sound('throw', allow_overlap=True, volume=0.9)
 
-    # PLAY WATER SPRAY LOOP
     def play_water_spray(self, start: bool = True):
         if self.muted or not self._loaded or not self._mixer_ready:
             return
@@ -498,7 +476,6 @@ class SoundManager:
             except Exception:
                 pass
 
-    # START CUPS LOOP
     def start_cups(self):
         if self.muted or not self._loaded or not self._mixer_ready:
             return
@@ -515,7 +492,6 @@ class SoundManager:
         except Exception:
             pass
 
-    # STOP CUPS LOOP
     def stop_cups(self):
         if self.muted or not self._loaded or not self._mixer_ready:
             return
@@ -533,10 +509,10 @@ class SoundManager:
         except Exception:
             pass
 
-# PRIZE ICON CACHE
+# Icon Cache
 _icon_cache = {}
 
-# PRIZE ICON RENDERER
+# Icon Generation
 def create_prize_icon_surf(icon_id: str, size: int = 64):
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     center = (size // 2, size // 2)
@@ -629,21 +605,20 @@ def create_prize_icon_surf(icon_id: str, size: int = 64):
         surf.blit(txt, txt.get_rect(center=center))
     return surf
 
-# PRIZE ICON CACHER
+# Icon Retrieval
 def get_prize_icon(icon_id: str, size: int = 64):
     key = (icon_id, size)
     if key not in _icon_cache:
         _icon_cache[key] = create_prize_icon_surf(icon_id, size=size)
     return _icon_cache[key]
 
-# PRIZE ICON BLITTER
+# Icon Rendering
 def draw_prize_icon(surface, topleft, icon_id: str, size: int = 48):
     surf = get_prize_icon(icon_id, size=size)
     surface.blit(surf, topleft)
 
-# CLOWN VISUAL HELPER CLASS
+# Clown Representation
 class Clown:
-    # CLOWN INIT
     def __init__(self, center_x, center_y, size=72):
         self.clown_size = int(size)
         self.visual_size = max(self.clown_size + 24, int(self.clown_size * 1.4))
@@ -656,7 +631,6 @@ class Clown:
         self.rect = self.image.get_rect(center=(self.center_x, self.center_y))
         self._redraw()
 
-    # HAIR PUFFS GENERATOR
     def _generate_hair_puffs(self, seed=None):
         rng = random.Random(seed)
         puff_centers = []
@@ -679,29 +653,24 @@ class Clown:
         puff_centers.append(((self.visual_size // 2), hair_center_y - int(puff_radius * 0.9)))
         return puff_centers
 
-    # CLOWN REDRAW
     def _redraw(self):
         draw_clown_face_centered(self.image, self.clown_size, self.is_hit, self.visual_size, hair_puffs=self.hair_puffs)
 
-    # MARK HIT
     def mark_hit(self):
         self.is_hit = True
         self._redraw()
 
-    # RESET STATE
     def reset(self):
         self.is_hit = False
         self.visible_state = True
         self._redraw()
 
-    # UPDATE VISUAL
     def update_visual(self, is_hit_flag: bool):
         self.is_hit = bool(is_hit_flag)
         self._redraw()
 
-# PRIZE SCREEN CLASS
+# Prize Interface
 class PrizeScreen:
-    # PRIZE SCREEN INIT
     def __init__(self, screen, font, sound_manager, manager=None):
         self.screen = screen
         self.font = font
@@ -725,7 +694,6 @@ class PrizeScreen:
             self.unlocked = {p['id']: False for p in PRIZES}
         self.header_font = safe_font(size=26)
 
-    # PRIZE POSITIONS COMPUTATION
     def _compute_prize_positions(self):
         cols = 2
         rows = 4
@@ -747,17 +715,14 @@ class PrizeScreen:
                 positions.append((x_center - icon_w // 2, y_center - icon_w // 2))
         return positions
 
-    # RESET SCREEN
     def reset(self):
         self.scroll_offset = 0
         self.modal_active = False
         self.modal_prize_id = None
 
-    # CLAMP SCROLL
     def _clamp_scroll(self):
         self.scroll_offset = max(0, min(self.scroll_offset, 200))
 
-    # INPUT HANDLER
     def handle_input(self, event):
         if event.type == pygame.MOUSEWHEEL:
             self.scroll_offset -= event.y * self.scroll_speed
@@ -785,26 +750,24 @@ class PrizeScreen:
                         self.modal_active = True
                         self.modal_prize_id = pid
                         self.modal_message = f"You already own the {self._prize_by_id(pid)['name']}!"
-                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)
+                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 10, 120, 36)
                         self.modal_buttons = {'cancel': cancel_rect}
                     else:
                         self.modal_active = True
                         self.modal_prize_id = pid
                         cost = self._prize_by_id(pid)['cost']
                         self.modal_message = f"Purchase {self._prize_by_id(pid)['name']} for {cost} points?"
-                        buy_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 40, 120, 36)
-                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 40, 120, 36)
+                        buy_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 30, 120, 36)
+                        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 30, 120, 36)
                         self.modal_buttons = {'buy': buy_rect, 'cancel': cancel_rect}
                     break
 
-    # LOOKUP PRIZE BY ID
     def _prize_by_id(self, pid):
         for p in PRIZES:
             if p['id'] == pid:
                 return p
         return None
 
-    # ATTEMPT PURCHASE
     def _attempt_purchase(self, pid):
         prize = self._prize_by_id(pid)
         if prize is None:
@@ -833,22 +796,16 @@ class PrizeScreen:
                 self.sound_manager.play_fanfare()
             except Exception:
                 pass
-            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)
+            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)
             self.modal_buttons = {'cancel': cancel_rect}
         else:
-            try:
-                self.sound_manager.play_pop()
-            except Exception:
-                pass
             self.modal_message = "Insufficient points! Play more to earn this prize."
-            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)
+            cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)
             self.modal_buttons = {'cancel': cancel_rect}
 
-    # UPDATE NO-OP
     def update(self, dt):
         return 0
 
-    # DRAW PRIZE SCREEN
     def draw(self, total_score):
         self.screen.fill((28, 18, 30))
         title = self.font.render("PRIZE ROOM", True, CARNIVAL_YELLOW)
@@ -919,18 +876,16 @@ class PrizeScreen:
                 color = SPLASH_GREEN if is_buy else (60, 60, 60)
                 draw_button(self.screen, name.upper(), rect, color, BLACK, self.small_font, locked=False, hover=False)
 
-    # PRIZE CLEANUP
     def cleanup(self):
         pass
 
-# ANGLE DISTANCE UTILITY
+# Angle Computation
 def _angle_distance(a, b):
     diff = (a - b + math.pi) % (2 * math.pi) - math.pi
     return abs(diff)
 
-# DART POP GAME CLASS
+# Dart Mechanics
 class DartPopGame:
-    # DARTPOP INIT
     def __init__(self, screen, font, sound_manager):
         self.screen = screen
         self.font = font
@@ -950,7 +905,6 @@ class DartPopGame:
         self.reset()
         self.message = "Press SPACE to throw the dart! (Press F to toggle reticle mode)"
 
-    # BALLOON GENERATOR
     def generate_balloons(self):
         self.balloons = []
         balloon_angles = [0, math.pi / 2, math.pi, 3 * math.pi / 2]
@@ -962,7 +916,6 @@ class DartPopGame:
             color = random.choice(color_choices)
             self.balloons.append({'pos': (int(x), int(y)), 'size': size, 'color': color, 'hit': False})
 
-    # RESET GAME
     def reset(self):
         self.game_time = 0.0
         self.dart_thrown = False
@@ -974,7 +927,6 @@ class DartPopGame:
         self.generate_balloons()
         self.message = "Press SPACE to throw the dart! (Press F to toggle reticle mode)"
 
-    # RETICLE POSITION
     def _reticle_pos(self, t):
         if self.reticle_mode == 'figure8':
             ax = self.arm_length
@@ -987,7 +939,6 @@ class DartPopGame:
             y = self.center_y + self.arm_length * math.sin(t)
             return x, y
 
-    # INPUT HANDLER
     def handle_input(self, event):
         score_to_report = 0
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -1035,13 +986,11 @@ class DartPopGame:
                 self.message = "Reticle: CIRCULAR mode (Press F to toggle)"
         return score_to_report
 
-    # UPDATE GAME
     def update(self, dt):
         if not self.dart_thrown:
             self.game_time += dt
         return 0
 
-    # DRAW GAME
     def draw(self):
         self.screen.fill(CARNIVAL_RED)
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
@@ -1066,7 +1015,6 @@ class DartPopGame:
             pygame.draw.circle(self.screen, color, (int(dart_x), int(dart_y)), 12)
         self._draw_message()
 
-    # DRAW MESSAGE
     def _draw_message(self):
         max_w = SCREEN_WIDTH - 40
         lines = wrap_text(self.font, self.message, max_w)
@@ -1076,13 +1024,11 @@ class DartPopGame:
             self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, y))
             y += surf.get_height() + 2
 
-    # CLEANUP
     def cleanup(self):
         pass
 
-# SWAY OBJECT SPRITE CLASS
+# Sway Dynamics
 class SwayObject(pygame.sprite.Sprite):
-    # SWAY INIT
     def __init__(self, center_x, center_y, amplitude, frequency, pattern, color=CARNIVAL_RED, size=20):
         super().__init__()
         self.size = size
@@ -1097,7 +1043,6 @@ class SwayObject(pygame.sprite.Sprite):
         self.color = color
         self.time_offset = pygame.time.get_ticks()
 
-    # UPDATE SWAY
     def update(self):
         elapsed_time = pygame.time.get_ticks() - self.time_offset
         time_s = elapsed_time / 1000.0
@@ -1110,9 +1055,8 @@ class SwayObject(pygame.sprite.Sprite):
         pygame.draw.circle(self.image, self.color, (self.size * 5, self.size // 2), self.size // 2)
         return y_offset
 
-# BASKETBALL SPRITE
+# Projectile Physics
 class Basketball(pygame.sprite.Sprite):
-    # BASKETBALL INIT
     def __init__(self, start_x, start_y, arc_type, speed_multiplier=1.0):
         super().__init__()
         self.size = 40
@@ -1141,7 +1085,6 @@ class Basketball(pygame.sprite.Sprite):
         self.vx = (self.target_x - self.start_x) / max(0.001, self.duration)
         self.in_flight = True
 
-    # UPDATE BASKETBALL
     def update(self):
         if not self.in_flight:
             return
@@ -1163,9 +1106,8 @@ class Basketball(pygame.sprite.Sprite):
                 pass
             self.in_flight = False
 
-# HOOP SHOT GAME CLASS
+# Hoop Mechanics
 class HoopShotGame:
-    # HOOPSHOT INIT
     def __init__(self, screen, font, sound_manager):
         self.screen = screen
         self.font = font
@@ -1186,7 +1128,6 @@ class HoopShotGame:
         self.shot_cooldown = 0.6
         self.reset()
 
-    # RESET HOOPSHOT
     def reset(self):
         self.shot_result = "Press SPACE to shoot!"
         self.swish_combo = 0
@@ -1213,7 +1154,6 @@ class HoopShotGame:
         self.perfect_zone_rect = pygame.Rect(0, 0, 0, 0)
         self._randomize_target_zone()
 
-    # RANDOMIZE TARGET ZONE
     def _randomize_target_zone(self):
         min_top_y = self.bar_center_y - self.bar_amplitude
         max_top_y = self.bar_center_y + self.bar_amplitude - self.zone_height
@@ -1223,7 +1163,6 @@ class HoopShotGame:
             int(self.bar_center_x - 10), int(self.perfect_zone_top), 20, self.zone_height
         )
 
-    # CHECK SHOT
     def _check_shot(self):
         score_to_report = 0
         indicator_y = self.power_meter.rect.centery
@@ -1268,14 +1207,12 @@ class HoopShotGame:
         self.last_shot_time = time.time()
         return score_to_report
 
-    # INPUT HANDLER
     def handle_input(self, event):
         score_change = 0
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             score_change = self._check_shot()
         return score_change
 
-    # UPDATE
     def update(self, dt):
         self.all_sprites.update()
         for sprite in list(self.all_sprites):
@@ -1288,7 +1225,6 @@ class HoopShotGame:
         self.hoop_reticle_angle %= (2 * math.pi)
         return 0
 
-    # DRAW
     def draw(self):
         self.screen.fill(HOOP_BLUE)
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
@@ -1342,14 +1278,13 @@ class HoopShotGame:
             self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, y - surf.get_height()))
             y -= surf.get_height() + 2
 
-    # CLEANUP
     def cleanup(self):
         try:
             self.all_sprites.empty()
         except Exception:
             pass
 
-# CLOWN FACE RENDERER
+# Visual Rendering
 def draw_clown_face_centered(surface, clown_size, hit, surface_size, hair_puffs: Optional[List[Tuple[int, int]]] = None):
     surface.fill((0, 0, 0, 0))
     center = (surface_size // 2, surface_size // 2)
@@ -1403,9 +1338,8 @@ def draw_clown_face_centered(surface, clown_size, hit, surface_size, hair_puffs:
         pygame.draw.arc(surface, CARNIVAL_RED, mouth_rect, math.pi, 2 * math.pi, max(2, int(radius * 0.1)))
         pygame.draw.circle(surface, CARNIVAL_RED, nose_pos, max(6, int(radius * 0.18)))
 
-# WATER GUN SPRITE
+# Water Gun
 class WaterGun(pygame.sprite.Sprite):
-    # WATERGUN INIT
     def __init__(self, center_x, bottom_y):
         super().__init__()
         self.center_x_base = int(center_x)
@@ -1433,14 +1367,12 @@ class WaterGun(pygame.sprite.Sprite):
         self.particle_sway_speed = 4.0
         self.particle_sway_amp = 6.0
 
-    # UPDATE POSITION
     def update_position(self, dt):
         self.current_angle += SWING_SPEED * dt
         swing_angle = math.sin(self.current_angle) * MAX_SWING_ANGLE
         self.current_stream_x = self.pivot_x + STREAM_LENGTH * math.sin(swing_angle)
         self.current_stream_y = self.pivot_y - STREAM_LENGTH * math.cos(swing_angle)
 
-    # UPDATE STREAM AND PARTICLES
     def update_stream(self, target_y, water_level_ratio, dt):
         self.stream_image.fill((0, 0, 0, 0))
         current_time_s = pygame.time.get_ticks() / 1000.0
@@ -1501,14 +1433,12 @@ class WaterGun(pygame.sprite.Sprite):
             p['x'] += sway * dt * 30.0
             pygame.draw.circle(self.stream_image, (OG_WATER_CYAN[0], OG_WATER_CYAN[1], OG_WATER_CYAN[2], alpha), (int(p['x']), int(p['y'])), p['size'])
 
-    # DRAW STREAM TO SURFACE
     def draw_stream(self, surface):
         if self.is_spraying or self.particles:
             surface.blit(self.stream_image, self.stream_rect)
 
-# CLOWN SPLASH MINI-GAME CLASS
+# Splash Gameplay
 class ClownSplashMiniGame:
-    # CLOWNSPLASH INIT
     def __init__(self, screen, font, sound_manager):
         self.screen = screen
         self.font = font
@@ -1522,7 +1452,6 @@ class ClownSplashMiniGame:
         self.PLAY_AREA_CENTER_X = self.PLAY_AREA_RECT.centerx
         self.reset()
 
-    # RESET GAME
     def reset(self):
         self.message = "Hold SPACE to spray water! Press R to top-up. Splash for points!"
         self.WATER_MAX = 100.0
@@ -1553,7 +1482,6 @@ class ClownSplashMiniGame:
         self.reticle_sway_speed = 4.0
         self.reticle_sway_amp = 6.0
 
-    # SETUP CLOWNS
     def _setup_clowns(self):
         self.clown_targets.empty()
         clown_spacing = 150
@@ -1571,7 +1499,6 @@ class ClownSplashMiniGame:
             sprite.marked_hit = False
             self.clown_targets.add(sprite)
 
-    # INPUT HANDLER
     def handle_input(self, event):
         score_change = 0
         if event.type == pygame.KEYDOWN:
@@ -1591,10 +1518,6 @@ class ClownSplashMiniGame:
                             self.water_level = min(self.water_level, self.WATER_MAX)
                             percent = int((self.water_level / self.WATER_MAX) * 100)
                             self.message = f"Refilled +{int(added)} water! ({percent}% full)"
-                            try:
-                                self.sound_manager.play_pop()
-                            except Exception:
-                                pass
                         else:
                             self.message = "Tank already full."
                     else:
@@ -1612,14 +1535,10 @@ class ClownSplashMiniGame:
                                 clown.clown_logic.reset()
                             except Exception:
                                 pass
-                        try:
-                            self.sound_manager.play_pop()
-                        except Exception:
-                            pass
+                        
                         self.message = "Cooldown initiated..."
         return score_change
 
-    # UPDATE GAME
     def update(self, dt):
         score_to_report = 0
         current_time = time.time()
@@ -1707,7 +1626,6 @@ class ClownSplashMiniGame:
         self.water_gun.update_stream(self.clown_target_y, water_ratio, dt)
         return score_to_report
 
-    # DRAW GAME
     def draw(self):
         self.screen.fill(SPLASH_GREEN)
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
@@ -1759,7 +1677,6 @@ class ClownSplashMiniGame:
         except Exception:
             pass
 
-    # CLEANUP
     def cleanup(self):
         self.clown_targets.empty()
         try:
@@ -1767,9 +1684,8 @@ class ClownSplashMiniGame:
         except Exception:
             pass
 
-# CUP SPRITE CLASS
+# Cup Representation
 class Cup(pygame.sprite.Sprite):
-    # CUP INIT
     def __init__(self, x, y, size=160, has_ball=False):
         super().__init__()
         self.size = int(size)
@@ -1787,7 +1703,6 @@ class Cup(pygame.sprite.Sprite):
         self.duration = SHUFFLE_DURATION_MS / 1000.0
         self._draw_cup()
 
-    # DRAW CUP
     def _draw_cup(self):
         self.image.fill((0, 0, 0, 0))
         points = [
@@ -1801,7 +1716,6 @@ class Cup(pygame.sprite.Sprite):
         if self.is_revealed and self.has_ball:
             pygame.draw.circle(self.image, WHITE, (self.size // 2, self.size - 30), 18)
 
-    # SET TARGET
     def set_target(self, target_x, target_y):
         self.target_x = float(target_x)
         self.target_y = float(target_y)
@@ -1809,7 +1723,6 @@ class Cup(pygame.sprite.Sprite):
         self.is_moving = True
         self.duration = SHUFFLE_DURATION_MS / 1000.0
 
-    # UPDATE CUP
     def update(self):
         if self.is_moving:
             elapsed = time.time() - self.start_time
@@ -1823,14 +1736,12 @@ class Cup(pygame.sprite.Sprite):
                 self.current_x = self.target_x
                 self.current_y = self.target_y
 
-    # REVEAL
     def reveal(self, should_reveal=True):
         self.is_revealed = bool(should_reveal)
         self._draw_cup()
 
-# SHELL GAME MINI-GAME
+# Shell Gameplay
 class ShellGameMiniGame:
-    # SHELLGAME INIT
     def __init__(self, screen, font, sound_manager):
         self.screen = screen
         self.font = font
@@ -1843,7 +1754,6 @@ class ShellGameMiniGame:
         self.PLAY_AREA_CENTER_X = self.PLAY_AREA_RECT.centerx
         self.reset()
 
-    # RESET SHELLGAME
     def reset(self):
         self.state = "START_REVEAL"
         self.shuffle_count = 10
@@ -1861,7 +1771,6 @@ class ShellGameMiniGame:
         self._initial_reveal_sequence()
         self._cups_sound_playing = False
 
-    # SETUP CUPS
     def _setup_cups(self):
         ball_index = random.randint(0, 2)
         self.cups = []
@@ -1873,7 +1782,6 @@ class ShellGameMiniGame:
             cup.reveal(False)
             cup.is_moving = False
 
-    # INITIAL REVEAL SEQUENCE
     def _initial_reveal_sequence(self):
         self.state = "START_REVEAL"
         for cup in self.cups:
@@ -1881,7 +1789,6 @@ class ShellGameMiniGame:
         self.message = "Watch the ball!"
         pygame.time.set_timer(SHUFFLE_EVENT, INITIAL_REVEAL_DURATION_MS)
 
-    # START SHUFFLING
     def _start_shuffling(self):
         for cup in self.cups:
             cup.reveal(False)
@@ -1896,7 +1803,6 @@ class ShellGameMiniGame:
             self._cups_sound_playing = False
         pygame.time.set_timer(SHUFFLE_EVENT, SHUFFLE_DURATION_MS + 100)
 
-    # GENERATE PAIRS
     def _generate_shuffle_pairs(self):
         pairs = []
         for _ in range(self.shuffle_count):
@@ -1904,7 +1810,6 @@ class ShellGameMiniGame:
             pairs.append(tuple(indices))
         return pairs
 
-    # DO ONE SHUFFLE
     def _do_one_shuffle(self):
         if any(cup.is_moving for cup in self.cups):
             return
@@ -1929,7 +1834,6 @@ class ShellGameMiniGame:
         self.cups[idx1], self.cups[idx2] = self.cups[idx2], self.cups[idx1]
         self.current_shuffle += 1
 
-    # CHECK CHOICE
     def _check_choice(self, pos):
         score_to_report = 0
         if self.state != "WAITING_CHOICE":
@@ -1956,7 +1860,6 @@ class ShellGameMiniGame:
             pygame.time.set_timer(SHUFFLE_EVENT, INITIAL_REVEAL_DURATION_MS)
         return score_to_report
 
-    # INPUT HANDLER
     def handle_input(self, event):
         score_change = 0
         if event.type == SHUFFLE_EVENT:
@@ -1971,7 +1874,6 @@ class ShellGameMiniGame:
                 score_change = self._check_choice(event.pos)
         return score_change
 
-    # UPDATE
     def update(self, dt):
         self.all_sprites.update()
         any_moving = any(cup.is_moving for cup in self.cups)
@@ -1989,7 +1891,6 @@ class ShellGameMiniGame:
             self._cups_sound_playing = False
         return 0
 
-    # DRAW
     def draw(self):
         self.screen.fill(BLACK)
         table_rect = pygame.Rect(self.PLAY_AREA_RECT.left, self.PLAY_AREA_RECT.top + 100, self.PLAY_AREA_RECT.width, self.PLAY_AREA_RECT.height - 100)
@@ -1998,7 +1899,6 @@ class ShellGameMiniGame:
         self.screen.blit(msg_text, (SCREEN_WIDTH // 2 - msg_text.get_width() // 2, 80))
         self.all_sprites.draw(self.screen)
 
-    # CLEANUP
     def cleanup(self):
         pygame.time.set_timer(SHUFFLE_EVENT, 0)
         self.all_sprites.empty()
@@ -2009,9 +1909,8 @@ class ShellGameMiniGame:
         except Exception:
             pass
 
-# WHACK TARGET SPRITE
+# Whack Target
 class WhackTarget(pygame.sprite.Sprite):
-    # WHACKTARGET INIT
     def __init__(self, x, y, size=92):
         super().__init__()
         self.size = int(size)
@@ -2024,7 +1923,6 @@ class WhackTarget(pygame.sprite.Sprite):
         self.clown = Clown(self.rect.centerx, self.rect.centery, size=self.size - 10)
         self._redraw()
 
-    # REDRAW
     def _redraw(self):
         self.image.fill((0, 0, 0, 0))
         hole_h = int(self.size * 0.4)
@@ -2036,33 +1934,28 @@ class WhackTarget(pygame.sprite.Sprite):
             pos = (self.surface_size // 2 - clown_surf.get_width() // 2, self.surface_size // 2 - clown_surf.get_height() // 2 - 6)
             self.image.blit(clown_surf, pos)
 
-    # POP
     def pop(self, lifetime=1.2):
         self.visible = True
         self.pop_time = time.time()
         self.lifetime = lifetime
         self._redraw()
 
-    # HIDE
     def hide(self):
         self.visible = False
         self._redraw()
 
-    # WHACK
     def whack(self):
         if self.visible:
             self.hide()
             return WHACK_HIT_SCORE
         return 0
 
-    # UPDATE
     def update(self, dt):
         if self.visible and time.time() - self.pop_time >= self.lifetime:
             self.hide()
 
-# WHACK-A-MOLE GAME
+# Whack Gameplay
 class WhackAMoleGame:
-    # WHACKAMOLE INIT
     def __init__(self, screen, font, sound_manager):
         self.screen = screen
         self.font = font
@@ -2075,7 +1968,6 @@ class WhackAMoleGame:
         )
         self.reset()
 
-    # RESET
     def reset(self):
         self.message = "Whack the clown! Only one appears at a time."
         self.rows = 4
@@ -2100,7 +1992,6 @@ class WhackAMoleGame:
         self.round_over = False
         self.round_end_time = None
 
-    # INPUT HANDLER
     def handle_input(self, event):
         score_change = 0
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -2121,7 +2012,6 @@ class WhackAMoleGame:
                 self.misses += 1
         return score_change
 
-    # UPDATE
     def update(self, dt):
         if self.round_over:
             if time.time() >= self.round_end_time:
@@ -2147,7 +2037,6 @@ class WhackAMoleGame:
             self.message = f"Round over! Hits: {self.hits} | Misses: {self.misses}"
         return 0
 
-    # DRAW
     def draw(self):
         self.screen.fill(MENU_DARK_BLUE)
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
@@ -2165,14 +2054,12 @@ class WhackAMoleGame:
             self.screen.blit(t_surf, (SCREEN_WIDTH // 2 - t_surf.get_width() // 2, y))
             y += t_surf.get_height() + 2
 
-    # CLEANUP
     def cleanup(self):
         for t in self.targets:
             t.hide()
 
-# ARCADE MANAGER CLASS
+# Arcade Controller
 class ArcadeManager:
-    # MANAGER INIT
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
@@ -2252,7 +2139,6 @@ class ArcadeManager:
         except Exception:
             pass
 
-    # LOAD SCORES
     def _load_scores(self):
         try:
             with open(SCORES_FILE, 'r') as f:
@@ -2262,7 +2148,6 @@ class ArcadeManager:
         except Exception:
             pass
 
-    # SAVE SCORES
     def _save_scores(self):
         try:
             data = {str(k): v for k, v in self.game_high_scores.items()}
@@ -2270,7 +2155,6 @@ class ArcadeManager:
         except Exception:
             pass
 
-    # LOAD PRIZES
     def _load_prizes(self):
         try:
             with open(PRIZE_STATE_FILE, 'r') as f:
@@ -2281,14 +2165,12 @@ class ArcadeManager:
         except Exception:
             self.prize_unlocked = {p['id']: False for p in PRIZES}
 
-    # SAVE PRIZES
     def _save_prizes(self):
         try:
             atomic_write_json(PRIZE_STATE_FILE, self.prize_unlocked)
         except Exception:
             pass
 
-    # LOAD UNLOCKS
     def _load_unlocks(self):
         try:
             with open(UNLOCK_STATE_FILE, 'r') as f:
@@ -2299,14 +2181,12 @@ class ArcadeManager:
         except Exception:
             self.game_unlocked = {str(STATE_WHACK): False, str(STATE_SHELLGAME): False}
 
-    # SAVE UNLOCKS
     def _save_unlocks(self):
         try:
             atomic_write_json(UNLOCK_STATE_FILE, self.game_unlocked)
         except Exception:
             pass
 
-    # APPLY SETTINGS
     def _apply_settings(self):
         self.time_scale_target = 0.75 if self.settings["slow_game"] else 1.0
         try:
@@ -2317,7 +2197,6 @@ class ArcadeManager:
         ACCESSIBILITY_OPTIONS["reticle_alt"] = self.settings["reticle_alt"]
         self.show_fps = bool(self.settings.get("fps_in_settings", False))
 
-    # HANDLE INPUT
     def _handle_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -2464,11 +2343,9 @@ class ArcadeManager:
                     self.total_score += score_change
                     self.current_game_score += score_change
 
-    # CHECK UNLOCK
     def _is_game_unlocked(self, state_id: int) -> bool:
         return bool(self.game_unlocked.get(str(state_id), False))
 
-    # OPEN UNLOCK MODAL
     def _open_unlock_modal(self, state_id: int):
         self.modal_active = True
         self.modal_type = 'unlock_game'
@@ -2476,11 +2353,10 @@ class ArcadeManager:
         game_name = self.game_names.get(state_id, "Unknown")
         cost = WHACK_GAME_UNLOCK_SCORE if state_id == STATE_WHACK else SHELL_GAME_UNLOCK_SCORE
         self.modal_message = f"Unlock {game_name} permanently for {cost} points? This will deduct points from your total."
-        purchase_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 40, 120, 25)
-        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 40, 120, 25)
+        purchase_rect = pygame.Rect(SCREEN_WIDTH // 2 - 140, SCREEN_HEIGHT // 2 + 30, 120, 25)
+        cancel_rect = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 30, 120, 25)
         self.modal_buttons = {'purchase': purchase_rect, 'cancel': cancel_rect}
 
-    # ATTEMPT UNLOCK
     def _attempt_unlock_game(self, state_id: int):
         cost = WHACK_GAME_UNLOCK_SCORE if state_id == STATE_WHACK else SHELL_GAME_UNLOCK_SCORE
         if self.total_score >= cost:
@@ -2488,7 +2364,7 @@ class ArcadeManager:
             self.game_unlocked[str(state_id)] = True
             self._save_unlocks()
             self.modal_message = f"{self.game_names.get(state_id)} unlocked! Enjoy the game."
-            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)}
+            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)}
             try:
                 self.sound_manager.play_buy()
             except Exception:
@@ -2498,14 +2374,9 @@ class ArcadeManager:
             except Exception:
                 pass
         else:
-            try:
-                self.sound_manager.play_pop()
-            except Exception:
-                pass
             self.modal_message = "Insufficient points to unlock this game."
-            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 40, 120, 36)}
+            self.modal_buttons = {'cancel': pygame.Rect(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 + 30, 120, 36)}
 
-    # UPDATE STATE
     def _update_state(self, dt):
         t = max(0.0, min(1.0, dt * self.time_scale_lerp_speed))
         self.time_scale_current += (self.time_scale_target - self.time_scale_current) * t
@@ -2546,7 +2417,6 @@ class ArcadeManager:
                 prize_game.unlocked = self.prize_unlocked
                 prize_game.update(scaled_dt)
 
-    # DRAW MAIN MENU
     def _draw_menu(self):
         self.screen.fill(MENU_DARK_BLUE)
         stripe_width = 40
@@ -2635,7 +2505,6 @@ class ArcadeManager:
         inst_surf = self.small_font.render("Press ESC to exit Arcade", True, UI_PLAYFUL)
         self.screen.blit(inst_surf, (SCREEN_WIDTH // 2 - inst_surf.get_width() // 2, SCREEN_HEIGHT - 30))
 
-    # DRAW SETTINGS
     def _draw_settings_screen(self):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 180))
@@ -2719,7 +2588,6 @@ class ArcadeManager:
         hint_surf = self.small_font.render("Click toggles or press 1/2/3/4/5/6 to toggle. ESC to return.", True, UI_PLAYFUL)
         self.screen.blit(hint_surf, (panel_rect.left + panel_w // 2 - hint_surf.get_width() // 2, panel_rect.bottom - 25))
 
-    # DRAW STATS
     def _draw_stats_screen(self):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 200))
@@ -2762,7 +2630,6 @@ class ArcadeManager:
         exit_surf = self.ui_font.render("Press SPACE to return to Menu", True, UI_PLAYFUL)
         self.screen.blit(exit_surf, exit_surf.get_rect(center=(panel_center_x, panel_rect.bottom - 20)))
 
-    # DRAW GAME SCORE HUD
     def _draw_game_score(self):
         session_text = f"SESSION: {self.current_game_score}"
         session_surf = self.ui_font.render(session_text, True, UI_PLAYFUL)
@@ -2778,7 +2645,6 @@ class ArcadeManager:
             except Exception:
                 pass
 
-    # MONOCHROME FILTER
     def _apply_monochrome_filter(self):
         surf = self.screen
         try:
@@ -2809,7 +2675,6 @@ class ArcadeManager:
             gray_surf.unlock()
             surf.blit(gray_surf, (0, 0))
 
-    # MAIN RUN LOOP
     def run(self):
         last_time = time.time()
         while self.running:
@@ -2869,7 +2734,7 @@ class ArcadeManager:
         self._save_prizes()
         self._save_unlocks()
 
-# PROGRAM ENTRYPOINT
+# Main Execution
 if __name__ == '__main__':
     manager = ArcadeManager()
     manager.run()

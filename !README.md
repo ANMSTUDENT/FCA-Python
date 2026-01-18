@@ -25,7 +25,7 @@ The repository reflects a systematic development process focused on iteration an
 
 ### 📦 Windows Version (EXE)
 A standalone executable version is available for users who do not have Python installed. 
-* **Download:** [https://drive.google.com/file/d/1xVxEVuJo1dbzElLKR3_9sTzFD_80mOcd/view?usp=sharing]
+* **Download:** [Download](https://drive.google.com/file/d/1xVxEVuJo1dbzElLKR3_9sTzFD_80mOcd/view?usp=sharing)
 * **Note:** Simply extract the folder and run the `.exe` file to play. No installation required.
 
 ---

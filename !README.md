@@ -14,6 +14,15 @@ Jay's Carnival Arcade is a collection of classic carnival mini-games built with 
 
 ---
 
+### 📜 Development History & Commits
+The repository reflects a systematic development process focused on iteration and stability:
+
+* **Version Control:** Previous versions (Beta, Simple, and Test builds) were maintained to track working vs. non-working states during feature testing.
+* **Refinement & Renames:** Periodic file renames represent significant code updates and logic refinements.
+* **Consolidation:** Individual game modules and beta features were eventually merged to create the unified "Jay's Carnival Arcade" experience.
+
+---
+
 ### 📦 Windows Version (EXE)
 A standalone executable version is available for users who do not have Python installed. 
 * **Download:** [https://drive.google.com/file/d/1xVxEVuJo1dbzElLKR3_9sTzFD_80mOcd/view?usp=sharing]

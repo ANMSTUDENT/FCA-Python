@@ -3,6 +3,7 @@
 # 01/12/2026 
 # This comprehensive arcade simulation integrates a variety of classic carnival challenges, including physics-based projectile mechanics and probability-driven logic, to provide a multifaceted interactive experience. (Juicemind version not recommended, use .exe version for performance, resolution fix, and audio support.)
 
+#MODULE IMPORTS
 import pygame
 import sys
 import time
@@ -113,12 +114,12 @@ def atomic_write_json(path: str, data):
     try:
         dirpath = os.path.dirname(path) or "."
         tmp_path = os.path.join(dirpath, f".{os.path.basename(path)}.tmp")
-        with open(tmp_path, 'w') as f:
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(data, f)
         os.replace(tmp_path, path)
     except Exception:
         try:
-            with open(path, 'w') as f:
+            with open(path, 'w', encoding='utf-8') as f:
                 json.dump(data, f)
         except Exception:
             pass
@@ -172,22 +173,30 @@ def draw_rounded_box(surface: pygame.Surface, rect: pygame.Rect,
 # BUTTON RENDERER
 def draw_button(surface, text, rect, color, text_color, font, locked=False, hover=False):
     base_color = DARK_GRAY if locked else color
+
     if hover and not locked:
         base_color = tuple(min(255, int(c * 1.08 + 8)) for c in base_color)
+
     border_thickness = max(2, min(6, rect.height // 12))
     radius = max(8, rect.height // 3)
+
     shadow = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
     shadow.fill((0, 0, 0, 0))
+
     try:
         pygame.draw.rect(shadow, (0, 0, 0, 60), (4, 4, rect.width - 4, rect.height - 4), 0, border_radius=radius)
     except TypeError:
         pygame.draw.rect(shadow, (0, 0, 0, 60), (4, 4, rect.width - 4, rect.height - 4))
+
     surface.blit(shadow, rect.topleft)
+
     draw_rounded_box(surface, rect, fill_color=base_color,
                      border_color=CARNIVAL_YELLOW if not locked else BLACK,
                      border_thickness=border_thickness, radius=radius)
+
     text_surface = font.render(text, True, text_color)
     text_rect = text_surface.get_rect(center=(rect.left + rect.width // 2, rect.top + rect.height // 2))
+
     surface.blit(text_surface, text_rect)
 
 # PYGAME INIT
@@ -335,7 +344,7 @@ class SoundManager:
             self._mixer_ready = False
             self._loaded = False
 
-    # SOUND MANAGER MUTE SETTER
+    # SOUNDMANAGER MUTE SETTER
     def set_mute(self, muted: bool):
         muted = bool(muted)
         if muted == self.muted:
@@ -851,72 +860,96 @@ class PrizeScreen:
     # DRAW PRIZE SCREEN
     def draw(self, total_score):
         self.screen.fill((28, 18, 30))
+
         title = self.font.render("PRIZE ROOM", True, CARNIVAL_YELLOW)
         self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 24))
+
         hud = self.small_font.render(f"POINTS: {total_score}", True, UI_PLAYFUL)
         self.screen.blit(hud, (SCREEN_WIDTH - hud.get_width() - 12, 12))
+
         self.prize_item_rects.clear()
         icon_size = 76
+
         for i, prize in enumerate(PRIZES):
             pos = self.prize_positions[i]
             px, py = pos
             display_x = px
             display_y = py
+
             pedestal_rect = pygame.Rect(display_x - 8, display_y + icon_size - 10, icon_size + 16, 14)
             pygame.draw.rect(self.screen, OG_BROWN, pedestal_rect)
+
             icon_surf = get_prize_icon(prize['id'], size=icon_size)
             unlocked = self.unlocked.get(prize['id'], False)
+
             if unlocked:
                 self.screen.blit(icon_surf, (display_x, display_y))
+
                 try:
                     pygame.draw.rect(self.screen, CARNIVAL_YELLOW, (display_x - 6, display_y - 6, icon_size + 12, icon_size + 12), 3, border_radius=8)
                 except TypeError:
                     pygame.draw.rect(self.screen, CARNIVAL_YELLOW, (display_x - 6, display_y - 6, icon_size + 12, icon_size + 12), 3)
+
             else:
                 faded = icon_surf.copy()
+
                 try:
                     fade_overlay = pygame.Surface(faded.get_size(), pygame.SRCALPHA)
                     fade_overlay.fill((90, 90, 90, 200))
                     faded.blit(fade_overlay, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
                 except Exception:
                     faded.set_alpha(120)
+
                 self.screen.blit(faded, (display_x, display_y))
+
                 lock_x = display_x + icon_size - 18
                 lock_y = display_y + 6
                 pygame.draw.circle(self.screen, DARK_GRAY, (lock_x, lock_y), 10)
                 pygame.draw.rect(self.screen, BLACK, (lock_x - 6, lock_y + 2, 12, 8))
+
             if unlocked:
                 status_text = "OWNED"
                 status_color = SPLASH_GREEN
             else:
                 status_text = f"{prize['cost']} pts"
                 status_color = CARNIVAL_YELLOW if total_score >= prize['cost'] else CARNIVAL_RED
+
             name_surf = self.small_font.render(prize['name'], True, WHITE)
             stat_surf = self.small_font.render(status_text, True, status_color)
+
             name_x = display_x + (icon_size // 2) - (name_surf.get_width() // 2)
             name_y = display_y + icon_size - 6
             stat_x = display_x + (icon_size // 2) - (stat_surf.get_width() // 2)
             stat_y = display_y + icon_size + 14
+
             self.screen.blit(name_surf, (name_x, name_y))
             self.screen.blit(stat_surf, (stat_x, stat_y))
+
             bounding = pygame.Rect(display_x - 6, display_y - 6, icon_size + 12, icon_size + 56)
             self.prize_item_rects[prize['id']] = bounding
+
         if self.modal_active:
             panel_w = 520
             panel_h = 150
             panel_rect = pygame.Rect(SCREEN_WIDTH // 2 - panel_w // 2, SCREEN_HEIGHT // 2 - panel_h // 2, panel_w, panel_h)
+
             draw_rounded_box(self.screen, panel_rect, fill_color=MENU_DARK_BLUE, border_color=CARNIVAL_YELLOW, border_thickness=4, radius=12)
+
             title = self.header_font.render("PRIZE INTERACTION", True, UI_PLAYFUL)
             self.screen.blit(title, (panel_rect.left + 20, panel_rect.top + 12))
+
             msg_lines = wrap_text(self.small_font, self.modal_message, panel_w - 40)
             y = panel_rect.top + 44
+
             for line in msg_lines:
                 surf = self.small_font.render(line, True, WHITE)
                 self.screen.blit(surf, (panel_rect.left + 20, y))
                 y += surf.get_height() + 6
+
             for name, rect in self.modal_buttons.items():
                 is_buy = (name == 'buy' or name == 'purchase')
                 color = SPLASH_GREEN if is_buy else (60, 60, 60)
+
                 draw_button(self.screen, name.upper(), rect, color, BLACK, self.small_font, locked=False, hover=False)
 
     # PRIZE CLEANUP
@@ -1044,26 +1077,33 @@ class DartPopGame:
     # DRAW GAME
     def draw(self):
         self.screen.fill(CARNIVAL_RED)
+
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
+
         pygame.draw.circle(self.screen, DARK_GRAY, (self.center_x, self.center_y), self.target_radius + 50, 0)
         pygame.draw.circle(self.screen, CARNIVAL_RED, (self.center_x, self.center_y), self.target_radius, 0)
         pygame.draw.circle(self.screen, SPLASH_GREEN, (self.center_x, self.center_y), int(self.target_radius * 0.5))
         pygame.draw.circle(self.screen, WHITE, (self.center_x, self.center_y), self.bullseye_radius)
+
         for balloon in self.balloons:
             if balloon['hit']:
                 pygame.draw.circle(self.screen, BLACK, balloon['pos'], balloon['size'] + 3)
                 pygame.draw.circle(self.screen, CARNIVAL_RED, balloon['pos'], balloon['size'] - 5)
             else:
                 pygame.draw.circle(self.screen, balloon['color'], balloon['pos'], balloon['size'])
+
         t = self.game_time * self.rotation_speed
         end_x, end_y = self._reticle_pos(t)
         reticle_color = UI_PLAYFUL if not ACCESSIBILITY_OPTIONS["reticle_alt"] else (255, 180, 180)
+
         if not self.dart_thrown:
             pygame.draw.circle(self.screen, reticle_color, (int(end_x), int(end_y)), 8)
+
         if self.dart_thrown:
             dart_x, dart_y = self._reticle_pos(t)
             color = SPLASH_GREEN if self.hit_result != 'MISS' else CARNIVAL_RED
             pygame.draw.circle(self.screen, color, (int(dart_x), int(dart_y)), 12)
+
         self._draw_message()
 
     # DRAW MESSAGE
@@ -1291,52 +1331,68 @@ class HoopShotGame:
     # DRAW
     def draw(self):
         self.screen.fill(HOOP_BLUE)
+
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
+
         track_rect = pygame.Rect(
             int(self.power_meter.start_x - 10), int(self.power_meter.start_y - self.bar_amplitude), 20, int(self.bar_amplitude * 2)
         )
+
         try:
             pygame.draw.rect(self.screen, DARK_GRAY, track_rect, 0, border_radius=5)
             pygame.draw.rect(self.screen, SPLASH_GREEN, self.perfect_zone_rect, 0, border_radius=5)
         except TypeError:
             pygame.draw.rect(self.screen, DARK_GRAY, track_rect)
             pygame.draw.rect(self.screen, SPLASH_GREEN, self.perfect_zone_rect)
+
         pygame.draw.circle(self.screen, WHITE, (int(self.shooter_x), int(self.shooter_y)), 25)
         pygame.draw.circle(self.screen, DARK_GRAY, (int(self.shooter_x), int(self.shooter_y)), 25, 3)
+
         rim_center_x = self.hoop_center_x - 40
         hoop_center_x = rim_center_x
         hoop_center_y = self.hoop_center_y
+
         backboard_rect = (rim_center_x + 40, hoop_center_y - 75, 10, 150)
         pygame.draw.rect(self.screen, WHITE, backboard_rect)
+
         net_top_width = 70
         net_bottom_width = 42
         net_height = 78
         net_top_y = hoop_center_y + 8
         net_bottom_y = hoop_center_y + net_height
+
         net_top_left = (rim_center_x - net_top_width // 2, net_top_y)
         net_top_right = (rim_center_x + net_top_width // 2, net_top_y)
         net_bottom_left = (rim_center_x - net_bottom_width // 2, net_bottom_y)
         net_bottom_right = (rim_center_x + net_bottom_width // 2, net_bottom_y)
+
         num_strings = 6
         for i in range(num_strings):
             t = i / (num_strings - 1)
             top_x = net_top_left[0] + t * (net_top_right[0] - net_top_left[0])
             bottom_x = net_bottom_left[0] + t * (net_bottom_right[0] - net_bottom_left[0])
             pygame.draw.line(self.screen, WHITE, (top_x, net_top_y), (bottom_x, net_bottom_y), 1)
+
         pygame.draw.line(self.screen, WHITE, net_top_left, net_bottom_left, 2)
         pygame.draw.line(self.screen, WHITE, net_top_right, net_bottom_right, 2)
         pygame.draw.line(self.screen, WHITE, net_bottom_left, net_bottom_right, 2)
         pygame.draw.line(self.screen, WHITE, net_top_left, net_top_right, 2)
+
         rim_rect = (rim_center_x - 40, hoop_center_y - 15, 80, 30)
         pygame.draw.ellipse(self.screen, DARK_GRAY, rim_rect, 8)
+
         front_rim_rect = (rim_center_x - 36, hoop_center_y - 8, 72, 18)
         pygame.draw.ellipse(self.screen, DARK_GRAY, front_rim_rect, 6)
+
         self.all_sprites.draw(self.screen)
+
         combo_text = f"Combo: {self.swish_combo}"
         combo_surf = self.font.render(combo_text, True, UI_PLAYFUL)
         self.screen.blit(combo_surf, (20, 20))
+
         msg_lines = wrap_text(self.font, self.shot_result, SCREEN_WIDTH // 2)
         y = SCREEN_HEIGHT - 30
+
         for line in reversed(msg_lines):
             surf = self.font.render(line, True, UI_PLAYFUL)
             self.screen.blit(surf, (SCREEN_WIDTH // 2 - surf.get_width() // 2, y - surf.get_height()))
@@ -1354,44 +1410,55 @@ def draw_clown_face_centered(surface, clown_size, hit, surface_size, hair_puffs:
     surface.fill((0, 0, 0, 0))
     center = (surface_size // 2, surface_size // 2)
     radius = clown_size // 2
+
     hair_width = max(clown_size + 4, int(radius * 2.4))
     hair_height = max(int(radius * 0.65), int(clown_size * 0.6))
     hair_center_y = center[1] - int(radius * 0.35)
+
     hair_color_base = (170, 30, 30)
     hair_color_highlight = (220, 60, 60)
     puff_radius = int(max(8, hair_height * 0.48))
+
     if hair_puffs:
         puff_centers = hair_puffs
     else:
         puff_centers = []
         puff_spacing = int(hair_width // 7) if hair_width >= 70 else 10
         start_x = center[0] - hair_width // 2
+
         x = start_x
         while x <= start_x + hair_width:
             y = hair_center_y + random.randint(-4, 6)
             puff_centers.append((int(x), int(y)))
             x += puff_spacing
+
         side_offset = int(puff_radius * 0.9)
         puff_centers.append((center[0] - hair_width // 2 - side_offset // 2, hair_center_y + random.randint(-8, 2)))
         puff_centers.append((center[0] + hair_width // 2 + side_offset // 2, hair_center_y + random.randint(-8, 2)))
         puff_centers.append((center[0] - int(puff_spacing * 1.5), hair_center_y - int(puff_radius * 0.6)))
         puff_centers.append((center[0] + int(puff_spacing * 1.5), hair_center_y - int(puff_radius * 0.6)))
         puff_centers.append((center[0], hair_center_y - int(puff_radius * 0.9)))
+
     for pc in puff_centers:
         rr = int(puff_radius * (0.85 + (random.random() * 0.3)))
         pygame.draw.circle(surface, hair_color_base, pc, rr)
+
     for pc in puff_centers:
         hh = int(puff_radius * 0.45)
         hx = pc[0] - max(1, int(puff_radius * 0.12))
         hy = pc[1] - max(1, int(puff_radius * 0.25))
         pygame.draw.circle(surface, hair_color_highlight, (hx, hy), hh)
+
     face_color = WHITE if not hit else (200, 200, 200)
     pygame.draw.circle(surface, face_color, center, radius)
+
     eye_y = center[1] - int(radius * 0.2)
     eye_x_offset = int(radius * 0.5)
     eye_r = max(3, int(radius * 0.12))
+
     mouth_rect = pygame.Rect(center[0] - int(radius * 0.6), center[1] + int(radius * 0.18), int(radius * 1.2), int(radius * 0.5))
     nose_pos = (center[0], center[1] + int(radius * 0.02))
+
     if hit:
         pygame.draw.circle(surface, BLACK, (center[0] - eye_x_offset, eye_y), eye_r + 1)
         pygame.draw.circle(surface, BLACK, (center[0] + eye_x_offset, eye_y), eye_r + 1)
@@ -1706,51 +1773,67 @@ class ClownSplashMiniGame:
     # DRAW GAME
     def draw(self):
         self.screen.fill(SPLASH_GREEN)
+
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
         pygame.draw.rect(self.screen, CARNIVAL_RED, (self.PLAY_AREA_RECT.left, self.clown_target_y + 30, self.PLAY_AREA_RECT.width, 10))
         pygame.draw.rect(self.screen, CARNIVAL_RED, (self.PLAY_AREA_RECT.left, self.PLAY_AREA_RECT.bottom - 70, self.PLAY_AREA_RECT.width, 70))
+
         tank_x, tank_y = self.tank_x, self.tank_y
         tank_width, tank_height = self.tank_width, self.tank_height
         tank_rect = pygame.Rect(tank_x - 4, tank_y - 4, tank_width + 8, tank_height + 8)
+
         border_color = BLACK
         if self.water_level >= self.WATER_MAX * 0.9:
             border_color = SPLASH_GREEN
         elif self.water_level <= self.WATER_MAX * 0.1:
             border_color = CARNIVAL_RED
+
         draw_rounded_box(self.screen, tank_rect, fill_color=WHITE, border_color=border_color, border_thickness=3, radius=8)
+
         fill_ratio = self.water_level / self.WATER_MAX if self.WATER_MAX > 0 else 0.0
         displayed_ratio = max(0.0, min(1.0, fill_ratio))
         fill_height = int(displayed_ratio * tank_height)
+
         for i in range(fill_height):
             t = i / max(1, fill_height)
             r = int(OG_WATER_CYAN[0] * (0.6 + 0.4 * t))
             g = int(OG_WATER_CYAN[1] * (0.6 + 0.4 * t))
             b = int(OG_WATER_CYAN[2] * (0.6 + 0.4 * t))
             pygame.draw.line(self.screen, (r, g, b), (tank_x, tank_y + tank_height - i), (tank_x + tank_width - 1, tank_y + tank_height - i))
+
         threshold_y = tank_y + tank_height - int(self.start_threshold_ratio * tank_height)
         pygame.draw.line(self.screen, CARNIVAL_YELLOW, (tank_x - 6, threshold_y), (tank_x + tank_width + 6, threshold_y), 2)
+
         label = self.small_font.render("WATER", True, BLACK)
         self.screen.blit(label, (tank_x + tank_width // 2 - label.get_width() // 2, tank_y - 26))
+
         display_message = self.message.replace('**', '')
         max_w = SCREEN_WIDTH - 40
         lines = wrap_text(self.font, display_message, max_w)
         y = SCREEN_HEIGHT - 30 - (len(lines) - 1) * (self.font.get_linesize() // 1)
+
         for line in lines:
             msg_text = self.font.render(line, True, UI_PLAYFUL)
             self.screen.blit(msg_text, (SCREEN_WIDTH // 2 - msg_text.get_width() // 2, y))
             y += msg_text.get_height() + 2
+
         self.water_gun.draw_stream(self.screen)
         self.clown_targets.draw(self.screen)
         self.screen.blit(self.water_gun.image, self.water_gun.rect)
+
         reticle_color = UI_PLAYFUL if not ACCESSIBILITY_OPTIONS["reticle_alt"] else (255, 220, 180)
+
         try:
             dot_x = float(self.water_gun.hit_stream_x)
             t = pygame.time.get_ticks() / 1000.0
             sway = math.sin(t * self.reticle_sway_speed) * self.reticle_sway_amp
+
             dot_x = int(dot_x + sway)
             dot_y = int(self.clown_target_y) - 8
+
             dot_x = max(self.PLAY_AREA_RECT.left + 8, min(self.PLAY_AREA_RECT.right - 8, dot_x))
             dot_y = max(self.PLAY_AREA_RECT.top + 8, min(self.PLAY_AREA_RECT.bottom - 8, dot_y))
+
             pygame.draw.circle(self.screen, reticle_color, (dot_x, dot_y), 6)
         except Exception:
             pass
@@ -2146,16 +2229,22 @@ class WhackAMoleGame:
     # DRAW
     def draw(self):
         self.screen.fill(MENU_DARK_BLUE)
+
         pygame.draw.rect(self.screen, BLACK, self.PLAY_AREA_RECT)
+
         title = self.font.render("WHACK-A-CLOWN", True, UI_PLAYFUL)
         self.screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 60))
+
         for t in self.targets:
             self.screen.blit(t.image, t.rect.topleft)
+
         time_left = max(0, int(self.duration - (time.time() - self.time_started))) if not self.round_over else 0
         hud = self.small_font.render(f"Time: {time_left}s   Hits: {self.hits}   Misses: {self.misses}", True, UI_PLAYFUL)
         self.screen.blit(hud, (10, 10))
+
         lines = wrap_text(self.font, self.message, SCREEN_WIDTH - 60)
         y = SCREEN_HEIGHT - 60 - (len(lines) - 1) * (self.font.get_linesize() // 1)
+        
         for line in lines:
             t_surf = self.font.render(line, True, UI_PLAYFUL)
             self.screen.blit(t_surf, (SCREEN_WIDTH // 2 - t_surf.get_width() // 2, y))
@@ -2247,6 +2336,33 @@ class ArcadeManager:
             self.sound_manager.play_background_music()
         except Exception:
             pass
+
+        self._button_hovered = {}
+        self._selection_sound = None
+        try:
+            sel_candidates = [
+                resource_path(os.path.join("Sounds", "Selection.mp3")),
+                resource_path(os.path.join("Sounds", "selection.mp3")),
+                os.path.join("Sounds", "Selection.mp3"),
+                os.path.join("Sounds", "selection.mp3"),
+            ]
+            sel_path = None
+            for cand in sel_candidates:
+                try:
+                    if cand and os.path.isfile(cand):
+                        sel_path = cand
+                        break
+                except Exception:
+                    pass
+            if sel_path and _HAVE_PYGAME:
+                try:
+                    self._selection_sound = pygame.mixer.Sound(sel_path)
+                except Exception:
+                    self._selection_sound = None
+            else:
+                self._selection_sound = None
+        except Exception:
+            self._selection_sound = None
 
     # LOAD SCORES
     def _load_scores(self):
@@ -2600,6 +2716,41 @@ class ArcadeManager:
         self.button_rects = {}
         mouse_pos = pygame.mouse.get_pos()
         ordered = [STATE_DARTPOP, STATE_HOOPSHOT, STATE_SPLASH, STATE_WHACK, STATE_SHELLGAME]
+
+        # helper to play selection sound once per hover entry
+        def _maybe_play_selection_for_key(key):
+            try:
+                if self._button_hovered.get(key, False):
+                    return
+                self._button_hovered[key] = True
+                if self.sound_manager and hasattr(self.sound_manager, 'play_selection'):
+                    try:
+                        self.sound_manager.play_selection()
+                        return
+                    except Exception:
+                        pass
+                if self._selection_sound:
+                    try:
+                        self._selection_sound.play()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        # small side buttons hover handling: stats, settings, prize
+        # reset hover if not over them
+        side_keys = [('stats', self.stats_button_rect), ('settings', self.settings_button_rect), ('prize', self.prize_button_rect)]
+        for skey, srect in side_keys:
+            try:
+                h = srect.collidepoint(mouse_pos)
+                prev = self._button_hovered.get(skey, False)
+                if h and not prev:
+                    _maybe_play_selection_for_key(skey)
+                elif not h and prev:
+                    self._button_hovered[skey] = False
+            except Exception:
+                pass
+
         for i, state_id in enumerate(ordered):
             rect = pygame.Rect(button_left, y_start + i * (button_height + BUTTON_SPACING), button_width, button_height)
             is_locked = False
@@ -2612,6 +2763,12 @@ class ArcadeManager:
                 lock_text = f" (Unlock {SHELL_GAME_UNLOCK_SCORE})"
             button_text = self.game_names.get(state_id, "Unknown") + lock_text
             hover = rect.collidepoint(mouse_pos)
+            key = f"game_{state_id}"
+            prev_hover = self._button_hovered.get(key, False)
+            if hover and not prev_hover:
+                _maybe_play_selection_for_key(key)
+            elif not hover and prev_hover:
+                self._button_hovered[key] = False
             color = CARNIVAL_RED
             if state_id == STATE_HOOPSHOT:
                 color = HOOP_BLUE
